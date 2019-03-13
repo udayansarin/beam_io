@@ -10,6 +10,7 @@ models for the structure being analyzed
 """
 import numpy as np
 import loads
+import os
 import matplotlib.pyplot as plt
 
 
@@ -89,17 +90,17 @@ class AxialLoad:
     """
     define properties for an axial load
     """
-    def __init__(self, loc):
+    def __init__(self, loc, magnitude):
         """
         additional functionality for axial loading in development
-        :param loc:
+        :param loc: location of the axial load distance
+        :param magnitude: magnitude of the axial load in force
         """
         self._location = loc
-        print('hi')
+        self._value = magnitude
 
-    @staticmethod
-    def get_point_loading(mom_bal=False):
-        return 0
+    def get_point_loading(self):
+        return self._value
 
 
 class Moment:
@@ -400,6 +401,20 @@ class FixedSupport:
         self._reaction_ax = 1
         self._reaction_tor = 1
 
+    def update_ax_loading(self, axial_load):
+        """
+        update axial reaction load
+        :return:
+        """
+        self._reaction_ax = axial_load
+
+    def ax_get_point_loading(self):
+        """
+        get point loading for axial reaction
+        :return: axial reaction load at the fixed support
+        """
+        return self._reaction_ax
+
     def m_get_point_loading(self, mom_bal=False):
         """
         get point loading due to moment reaction
@@ -521,6 +536,20 @@ class PinnedSupport:
         self._reaction_vert = 1
         self._reaction_ax = 1
         self._reaction_tor = 1
+
+    def update_ax_loading(self, axial_load):
+        """
+        update axial reaction load
+        :return:
+        """
+        self._reaction_ax = axial_load
+
+    def ax_get_point_loading(self):
+        """
+        get point loading for axial reaction
+        :return: axial reaction load at the fixed support
+        """
+        return self._reaction_ax
 
     def v_singularity(self, x):
         """
@@ -733,16 +762,70 @@ class SolveProblem:
                 load['obj'] = self.cls_router(load['type'])(load['loc'], load['loc2'], load['val'], load['val2'],
                                                             self._beam_len)
             elif load['type'] == 'Axial Load':
-                continue
+                load['obj'] = self.cls_router(load['type'])(load['loc'], load['val'])
             else:
                 load['obj'] = self.cls_router(load['type'])(load['loc'], load['val'])
         self._basic_equations(moment_balance=False)  # force balance
         self._basic_equations(moment_balance=True)  # moment balance
         self._get_slope_equations()  # slope equation from evaluating locations of zero slope
         self._get_deflection_equations()  # slope equations from evaluating locations of zero deflection
-
+        self._axial_equations()
         self._parse_results()  # solve system of linear equations and develop result datasets
-        self._make_plots()  # plot results
+
+    def _axial_equations(self):
+        """
+        identify axial loads on the sturcture and evaluate parameters for axial loading on the beam
+        :return:
+        """
+        # calculate the number of supports with an axial reaction
+        axial_unknowns = 0
+        axial_supports = []
+        for support in self._supports:
+            if support['support'] == 'Roller':
+                continue
+            axial_supports.append(support)
+            axial_unknowns += 1
+        if axial_unknowns == 0:
+            return
+        # define the lhs and rhs linalg equations for calculating the axial loading on the structure
+        axial_lhs = []
+        axial_rhs = []
+        for _ in range(0, axial_unknowns):
+            axial_lhs.append(list(np.zeros(axial_unknowns)))
+            axial_rhs.append(0)
+
+        ax_equations = 0
+        # populate the force balance equation for axial forces
+        for var_count, support in enumerate(axial_supports):
+            axial_lhs[ax_equations][var_count] = support['obj'].ax_get_point_loading()
+        for load in self._loads:
+            if not load['type'] == 'Axial Load':
+                continue
+            axial_rhs[ax_equations] -= load['obj'].get_point_loading()
+        ax_equations += 1
+
+        for index in range(0, len(axial_supports) - 1):
+            if ax_equations == axial_unknowns:
+                break
+            load_subtractor = 0
+            for load in self._loads:
+                if not load['type'] == 'Axial Load':
+                    continue
+                if axial_supports[index]['location'] < load['loc'] < axial_supports[index+1]['location']:
+                    # if the load is between the fixed axial supports, calculate its position
+                    load_subtractor = load['loc']
+                # += and -= operators are to allow for superposition if more than one load is between the connections
+                # the second load is -ve because its sign changes based on your frame of reference when looking at the
+                # reaction load at the pinned/fixed joint for deflection versus global reference frame force balance
+                axial_lhs[ax_equations][index] += axial_supports[index]['obj'].get_point_loading() * \
+                    (load_subtractor-axial_supports[index]['location'])
+                axial_lhs[ax_equations][index+1] -= axial_supports[index+1]['obj'].get_point_loading() * \
+                    (axial_supports[index+1]['location']-load_subtractor)
+                axial_rhs[ax_equations] = 0
+            ax_equations += 1
+        ax_solutions = np.linalg.solve(axial_lhs, axial_rhs)
+        for index, support in enumerate(axial_supports):
+            support['obj'].update_ax_loading(ax_solutions[index])
 
     def _get_slope_equations(self):
         """
@@ -879,17 +962,44 @@ class SolveProblem:
             self._bending_moment[index] = bending_moment
             self._deflection[index] = deflection
 
+    def get_results(self):
+        """
+
+        :return:
+        """
+        results_dict = {'ShearForce': self._shear_force, 'BendingMoment': self._bending_moment,
+                        'Deflection': self._deflection, 'AxialForce': self._axial_force}
+        return results_dict
+
     def _make_plots(self):
         """
         develop plots to display matplotlib data
         :return:
         """
+        fig1 = plt.figure('shear force')
+        plt.title("Shear Force Plot")
+        plt.xlabel('Distance')
+        plt.ylabel('Shear Force')
+        plt.grid()
+        plt.gcf().subplots_adjust(left=0.2)
         plt.plot(self._beam_body, self._shear_force)
-        plt.show()
+        plt.savefig(os.path.join(os.getcwd(), r'app_data\sf.png'))
+        fig2 = plt.figure('bending moment')
+        plt.title("Bending Moment Plot")
+        plt.xlabel('Distance')
+        plt.ylabel('Bending Moment')
+        plt.grid()
+        plt.gcf().subplots_adjust(left=0.2)
         plt.plot(self._beam_body, self._bending_moment)
-        plt.show()
+        plt.savefig(os.path.join(os.getcwd(), r'app_data\bm.png'))
+        fig3 = plt.figure('deflection')
+        plt.title("Beam Deflection")
+        plt.xlabel('Distance')
+        plt.ylabel('Deflection')
+        plt.grid()
+        plt.gcf().subplots_adjust(left=0.2)
         plt.plot(self._beam_body, self._deflection)
-        plt.show()
+        plt.savefig(os.path.join(os.getcwd(), r'app_data\defl.png'))
 
 
 def dummy_run():
@@ -911,8 +1021,9 @@ def dummy_run():
 
     # Simple Beam
     length = 5.0
-    supports = [{'support': 'Roller', 'location': 0.0}, {'support': 'Roller', 'location': 5.0}]
-    loadsi = [{'val2': -5000.0, 'loc2': 5.0, 'type': 'Distributed Load', 'val': -5000.0, 'loc': 0.0}]
+    supports = [{'support': 'Pinned', 'location': 0.0}, {'support': 'Pinned', 'location': 5.0}]
+    loadsi = [{'val2': -5000.0, 'loc2': 5.0, 'type': 'Distributed Load', 'val': -5000.0, 'loc': 0.0},
+              {'type': 'Axial Load', 'val': -5000.0, 'loc': 2.5}]
     a = SolveProblem(length, supports, loadsi, 1000)
 
     # Simple indeterminate problem 2
@@ -922,7 +1033,7 @@ def dummy_run():
     #a = SolveProblem(length, supports, loadsi, 1000)
 
 
-#dummy_run()
+dummy_run()
 # Test cases: fixed with distributed load: PASS
 # Test cases: fixed with point load: PASS
 # Test cases: fixed with point, distributed and moment: PASS
