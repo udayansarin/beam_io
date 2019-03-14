@@ -20,7 +20,9 @@ class Interface:
     """
 
     def __init__(self):
+        self._resolution = 1000
         self._supports = []
+        self._beam_defined = False
         self._loads = []
         self._special_properties = {}
         self._len_units = None
@@ -29,20 +31,46 @@ class Interface:
         self._logo = os.path.join(os.getcwd(), 'I-beam.png.ico')
         self._units = units.UnitControl()
         self._setup = loads.SetupControl()
+        self._results_dict = None
         self._widgets = {}
         self._root = Tk()
         self._root.title("beam.io")
         self._root.iconbitmap(self._logo)
-        self._root.geometry('900x700')
+        self._root.geometry('900x800')
         self._root.resizable(height=False, width=False)
         self._populate_window()
         self._root.mainloop()
 
     def _solve_beam(self):
-        print(self._beam_len)
-        print(self._supports)
-        print(self._loads)
-        bs.SolveProblem(self._beam_len, self._supports, self._loads, 1000)
+        suff_support = False
+        no_roller = True
+        lc = []
+        try:
+            if len(self._loads) == 0:
+                raise RuntimeError("No loading provided\n")
+            for index, support in enumerate(self._supports):
+                if support['location'] in lc:
+                    raise RuntimeError("Two supports share same location\n")
+                lc.append(support['location'])
+                if support['support'] == "Fixed":
+                    suff_support = True
+                    break
+                if support['support'] == 'Roller':
+                    no_roller = False
+                if not no_roller:
+                    if support['support'] == 'Pinned':
+                        suff_support = True
+                        break
+            if not suff_support and (len(self._supports)<2):
+                raise RuntimeError("Insufficient defining features to solve problem\n")
+        except RuntimeError as e:
+            self.output(e)
+            return
+        _sol = bs.SolveProblem(self._beam_len, self._supports, self._loads, self._resolution)
+        self._results_dict = _sol.get_results()
+        self._setup_results_tab()
+        self._widgets['TabControl'].add(self._widgets['AdvancedTab'], text='Advanced Properties')
+        return
 
     def _populate_window(self):
         """
@@ -54,26 +82,117 @@ class Interface:
         self._widgets['ProblemTab'] = ttk.Frame(self._widgets['TabControl'])
         self._widgets['TabControl'].add(self._widgets['ProblemTab'], text='Basic Geometry')
         self._widgets['AdvancedTab'] = ttk.Frame(self._widgets['TabControl'])
-        self._widgets['TabControl'].add(self._widgets['AdvancedTab'], text='Advanced Properties')
         self._widgets['ResultsTab'] = ttk.Frame(self._widgets['TabControl'])
-        self._widgets['TabControl'].add(self._widgets['ResultsTab'], text='Results')
         self._widgets['HelpTab'] = ttk.Frame(self._widgets['TabControl'])
         self._widgets['TabControl'].add(self._widgets['HelpTab'], text='Help')
         self._widgets['TabControl'].pack(expand=1, fill='both')
 
         self._setup_problem_tab()
-        self._setup_advanced_tab()
         return
 
-    def _setup_advanced_tab(self):
-        self._widgets['StructuralPropertiesFrame'] = LabelFrame(self._widgets['AdvancedTab'])
-        self._widgets['CrossSectionFrame'] = LabelFrame(self._widgets['AdvancedTab'])
-        self._widgets['StructuralPropertiesFrame'].pack()
-        self._widgets['CrossSectionFrame'].pack()
-        self._widgets['MessageLabel'] = Label(self._widgets['StructuralPropertiesFrame'],
-                                              text='Select Advanced Properties')
-        self._widgets['MessageLabel'].grid(row=0, column=0)
-        Label(self._widgets['StructuralPropertiesFrame'], text='Enter Elas. Modulus:').grid(row=1, column=0)
+    def _display_reactions(self):
+        reactions = self._results_dict['Reactions']
+        _row = 0
+        _column = 0
+        for reaction in reactions:
+            reac_str = ""
+            for key, line in reaction.items():
+                if 'Sup' in key:
+                    _type = key.split('Sup')[0]
+                    _loc = float(line)/self._units.get_len_conversion(self._len_units)
+                    reac_str += f"{_type} support at {_loc}{self._len_units}\n"
+                if "moment" in key:
+                    conv_ = self._units.get_combined_conversion("Moment Load", self._len_units, self._force_units)
+                    units_ = self._units.get_combined_unit("Moment Load", self._len_units, self._force_units)
+                else:
+                    conv_ = self._units.get_force_conversion(self._force_units)
+                    units_ = self._force_units
+                reac_str += f'{key} reaction: {float(line)/conv_}{units_}\n'
+            txt = Text(self._widgets['ReactionsFrame'], height=6, width=30)
+            txt.grid(row=_row, column=_column)
+            _column += 1
+            if _column > 3:
+                _row += 1
+                _column = 0
+            txt.insert(INSERT, reac_str)
+        return
+
+    def _setup_results_tab(self):
+        self._widgets['TabControl'].add(self._widgets['ResultsTab'], text='Results')
+        self._widgets['ReactionsFrame'] = LabelFrame(self._widgets['ResultsTab'])
+        self._widgets['ReactionsFrame'].pack()
+        self._widgets['SliderFrame'] = LabelFrame(self._widgets['ResultsTab'])
+        self._widgets['SliderFrame'].pack()
+        self._widgets['PlotsFrame'] = LabelFrame(self._widgets['ResultsTab'])
+        self._widgets['PlotsFrame'].pack()
+        self._display_reactions()
+        Label(self._widgets['SliderFrame'], text='Please Select Desired Location').grid(row=0, column=0)
+        _scaled_len = self._beam_len/self._units.get_len_conversion(self._len_units)
+        self._widgets['LocationSelector'] = Scale(self._widgets['SliderFrame'], from_=0, to=_scaled_len,
+                                                  resolution=_scaled_len/self._resolution, orient=HORIZONTAL,
+                                                  command=
+                                                  lambda x: self._update_results(self._widgets['LocationSelector']))
+        self._widgets['LocationSelector'].grid(row=2, column=0)
+        Label(self._widgets['SliderFrame'], text="Results at Selected Location").grid(row=0, column=1)
+        self._widgets['AxialResults'] = Label(self._widgets['SliderFrame'], width=50)
+        self._widgets['AxialResults'].grid(row=1, column=1)
+        self._widgets['ShearResults'] = Label(self._widgets['SliderFrame'], width=50)
+        self._widgets['ShearResults'].grid(row=2, column=1)
+        self._widgets['MomentResults'] = Label(self._widgets['SliderFrame'], width=50)
+        self._widgets['MomentResults'].grid(row=3, column=1)
+        self._create_plotter()
+        return
+
+    def _create_plotter(self):
+        self._widgets['PlotSelectionFrame'] = Frame(self._widgets['PlotsFrame'])
+        self._widgets['PlotDisplay'] = Frame(self._widgets['PlotsFrame'])
+        self._widgets['PlotSelectionFrame'].pack()
+        self._widgets['PlotDisplay'].pack()
+        self._widgets['PlotSelectionVar'] = StringVar(self._widgets['PlotSelectionFrame'])
+        self._widgets['PlotSelectionVar'].set("Select Plot")
+        self._widgets['PlotSelectionMenu'] = OptionMenu(self._widgets['PlotSelectionFrame'],
+                                                        self._widgets['PlotSelectionVar'],
+                                                        *["Bending Moment", "Shear Force", "Axial Force"])
+        self._widgets['PlotSelectionMenu'].pack(side=LEFT)
+        self._widgets['PlotterButton'] = Button(self._widgets['PlotSelectionFrame'], text="Plot",
+                                                command=lambda: self._display_image())
+        self._widgets['PlotterButton'].pack(side=LEFT)
+        return
+
+    def _display_image(self):
+        target_file = self._widgets["PlotSelectionVar"].get()
+        target_file = "app_data\\" + target_file.lower().replace(' ', '_') + '.png'
+        if "select_plot.png" in target_file:
+            return
+        try:
+            self._widgets['Imageview'].pack_forget()
+        except KeyError:
+            pass
+        plot_file = os.path.join(os.getcwd(), target_file)
+        self._widgets['Image'] = ImageTk.PhotoImage(Image.open(plot_file))
+        self._widgets['Imageview'] = Label(self._widgets['PlotDisplay'], image=self._widgets['Image'])
+        self._widgets['Imageview'].pack()
+        return
+
+    def _update_results(self, loc_slider):
+        target_location = loc_slider.get()*self._units.get_len_conversion(self._len_units)
+        _ax = self._results_dict['AxialForce']
+        _sf = self._results_dict['ShearForce']
+        _bm = self._results_dict['BendingMoment']
+        _beam = self._results_dict['Beam']
+        loc_diff = [abs(target_location - target_val) for target_val in _beam]
+        target_ind = loc_diff.index(min(loc_diff))
+        axial_load = _ax[target_ind]/self._units.get_force_conversion(self._force_units)
+        vertical_load = _sf[target_ind]/self._units.get_force_conversion(self._force_units)
+        bending_moment = _bm[target_ind]/self._units.get_combined_conversion('Moment Load', self._len_units,
+                                                                             self._force_units)
+        axial_text = f"Axial Loading: {axial_load} {self._force_units}"
+        vertical_text = f"Vertical Loading: {vertical_load} {self._force_units}"
+        moment_text = f"Moment Loading: {bending_moment} {self._force_units}{self._len_units}"
+        self._widgets['AxialResults'].config(text=axial_text)
+        self._widgets['ShearResults'].config(text=vertical_text)
+        self._widgets['MomentResults'].config(text=moment_text)
+        return
 
     def _setup_problem_tab(self):
         # Populate sub-frames in the problem setup tab
@@ -220,18 +339,24 @@ class Interface:
                                                self._solve_beam(), width=18)
         self._widgets['SolveButton1'].grid(row=4, column=2, pady=15)
         self._widgets['SolveButton1'].config(font=("Helvetica", 30))
+        return
 
     def _define_beam(self, *args):
+        """
+        create the structural definition of the beam being solved - length and characteristic units desired by the user
+        :param args:
+        :return:
+        """
         self._loads = []
         self._supports = []
         self._len_units = self._widgets['BeamUnits'].get()
         self._force_units = self._widgets['ForceUnits'].get()
         try:
-            self._beam_len = float(self._widgets['BeamLength'].get())*self._units.get_len_conversion(self._len_units)
             if not (self._len_units in self._units.get_len_units()):
                 raise RuntimeError("Please select a length unit")
             if not (self._force_units in self._units.get_force_units()):
                 raise RuntimeError("Please select a force unit")
+            self._beam_len = float(self._widgets['BeamLength'].get())*self._units.get_len_conversion(self._len_units)
         except ValueError as e:
             self.output(e)
             self.output("Invalid Beam Length")
@@ -245,7 +370,9 @@ class Interface:
         self.output("Beam has been defined!")
         self._widgets['SupportType'].set("Select Support")
         self._widgets['LoadType'].set("Select Load")
+        self._beam_defined = True
         self._update_display()
+        return
 
     def _clear_last_support(self):
         """
@@ -302,7 +429,9 @@ class Interface:
             if self._beam_len is None:
                 raise RuntimeError("Define beam first!")
             _load_type = self._widgets['LoadType'].get()
-            if _load_type == "Select Support":
+            if _load_type == "Select Load":
+                if not self._beam_defined:
+                    return False
                 raise RuntimeError("Please select a load type")
             combined_unit = self._units.get_combined_unit(_load_type, self._len_units, self._force_units)
             def_conditions = self._setup.get_definition_conditions(_load_type)
@@ -336,6 +465,7 @@ class Interface:
             self._widgets['LoadLocEntry2'].grid_remove()
             self._widgets['LoadLocUnits2'].config(text='')
             self._widgets['LoadValueUnits2'].config(text='')
+        return
 
     def _determine_load(self):
         """
@@ -381,6 +511,7 @@ class Interface:
             return False
         self._loads.append(add_load)
         self._update_display()
+        return
 
     def _clear_last_load(self):
         """
@@ -437,6 +568,7 @@ class Interface:
             load_val += f"{self._units.get_combined_unit(load['type'], self._len_units, self._force_units)}\n"
             add_load_text += load_loc + load_val
         self._widgets['LoadLine'].insert(INSERT, add_load_text)
+        return
 
     def output(self, string):
         """

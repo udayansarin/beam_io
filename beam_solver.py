@@ -102,6 +102,14 @@ class AxialLoad:
     def get_point_loading(self):
         return self._value
 
+    def ax_singularity(self, x):
+        """
+        get point loading due to axial force as heavside for axial force diagrams
+        :param x: test location
+        :return: axial reaction as heaviside
+        """
+        return _h(self._location, x)*self.get_point_loading()
+
 
 class Moment:
     """
@@ -155,9 +163,7 @@ class Moment:
         return _h(self._location, x)*-self._value
 
     @staticmethod
-    def m_shear(self, x):
-        if self._location == x:
-            return 0
+    def m_shear(x):
         return 0
 
 
@@ -401,6 +407,18 @@ class FixedSupport:
         self._reaction_ax = 1
         self._reaction_tor = 1
 
+    def get_reactions(self):
+        """
+        provide dict of reactions developed at a fixed support along with support metadata
+        :return: dict containing support metadata and reaction load values
+        """
+        return {
+            "FixedSup": self._location,
+            "axial": self._reaction_ax,
+            "vertical": self._reaction_vert,
+            "moment": self._reaction_moment
+        }
+
     def update_ax_loading(self, axial_load):
         """
         update axial reaction load
@@ -414,6 +432,14 @@ class FixedSupport:
         :return: axial reaction load at the fixed support
         """
         return self._reaction_ax
+
+    def ax_singularity(self, x):
+        """
+        get point loading due to axial reaction as heavside for axial force diagrams
+        :param x: test location
+        :return: axial reaction as heaviside
+        """
+        return _h(self._location, x)*self.ax_get_point_loading()
 
     def m_get_point_loading(self, mom_bal=False):
         """
@@ -537,6 +563,17 @@ class PinnedSupport:
         self._reaction_ax = 1
         self._reaction_tor = 1
 
+    def get_reactions(self):
+        """
+        provide dict of reactions developed at a fixed support along with support metadata
+        :return: dict containing support metadata and reaction load values
+        """
+        return {
+            "PinnedSup": self._location,
+            "axial": self._reaction_ax,
+            "vertical": self._reaction_vert,
+        }
+
     def update_ax_loading(self, axial_load):
         """
         update axial reaction load
@@ -550,6 +587,14 @@ class PinnedSupport:
         :return: axial reaction load at the fixed support
         """
         return self._reaction_ax
+
+    def ax_singularity(self, x):
+        """
+        get point loading due to axial reaction as heavside for axial force diagrams
+        :param x: test location
+        :return: axial reaction as heaviside
+        """
+        return _h(self._location, x)*self.ax_get_point_loading()
 
     def v_singularity(self, x):
         """
@@ -619,6 +664,16 @@ class RollerSupport:
         """
         self._location = loc
         self._reaction_vert = 1
+
+    def get_reactions(self):
+        """
+        provide dict of reactions developed at a fixed support along with support metadata
+        :return: dict containing support metadata and reaction load values
+        """
+        return {
+            "RollerSup": self._location,
+            "vertical": self._reaction_vert
+        }
 
     def v_singularity(self, x):
         """
@@ -771,6 +826,7 @@ class SolveProblem:
         self._get_deflection_equations()  # slope equations from evaluating locations of zero deflection
         self._axial_equations()
         self._parse_results()  # solve system of linear equations and develop result datasets
+        self._make_plots()
 
     def _axial_equations(self):
         """
@@ -785,7 +841,11 @@ class SolveProblem:
                 continue
             axial_supports.append(support)
             axial_unknowns += 1
-        if axial_unknowns == 0:
+        not_axial = True
+        for load in self._loads:
+            if load['type'] == 'Axial':
+                not_axial = False
+        if (axial_unknowns == 0) or not_axial:
             return
         # define the lhs and rhs linalg equations for calculating the axial loading on the structure
         axial_lhs = []
@@ -937,6 +997,7 @@ class SolveProblem:
             shear_force = 0
             bending_moment = 0
             deflection = 0
+            axial = 0
             for support in self._supports:
                 if support['support'] == 'Fixed':
                     shear_force += support['obj'].m_shear(x_loc) + support['obj'].v_shear(x_loc)
@@ -946,13 +1007,15 @@ class SolveProblem:
                     shear_force += support['obj'].v_shear(x_loc)
                     bending_moment += support['obj'].v_moment(x_loc)
                     deflection += support['obj'].v_singularity(x_loc)
+                if not support['support'] == 'Roller':
+                    axial += support['obj'].ax_singularity(x_loc)
             for load in self._loads:
                 if load['type'] == 'Moment Load':
                     shear_force += load['obj'].m_shear(x_loc)
                     bending_moment += load['obj'].m_moment(x_loc)
                     deflection += load['obj'].singularity(x_loc)
                 elif load['type'] == 'Axial Load':
-                    continue
+                    axial += load['obj'].ax_singularity(x_loc)
                 else:
                     shear_force += load['obj'].v_shear(x_loc)
                     bending_moment += load['obj'].v_moment(x_loc)
@@ -961,14 +1024,19 @@ class SolveProblem:
             self._shear_force[index] = shear_force
             self._bending_moment[index] = bending_moment
             self._deflection[index] = deflection
+            self._axial_force[index] = axial
 
     def get_results(self):
         """
-
-        :return:
+        develop dictionary of beam solution values - bending moment, deflection, shear force and axial force. Also,
+        reactions and critical metadata is subtended to this dictionary.
+        :return: results and similar data in the form of a dict
         """
-        results_dict = {'ShearForce': self._shear_force, 'BendingMoment': self._bending_moment,
-                        'Deflection': self._deflection, 'AxialForce': self._axial_force}
+        reactions = []
+        for support in self._supports:
+            reactions.append(support['obj'].get_reactions())
+        results_dict = {'ShearForce': self._shear_force, 'BendingMoment': self._bending_moment, 'Beam': self._beam_body,
+                        'Deflection': self._deflection, 'AxialForce': self._axial_force, "Reactions": reactions}
         return results_dict
 
     def _make_plots(self):
@@ -976,66 +1044,35 @@ class SolveProblem:
         develop plots to display matplotlib data
         :return:
         """
-        fig1 = plt.figure('shear force')
+        plt.figure('shear force')
         plt.title("Shear Force Plot")
         plt.xlabel('Distance')
         plt.ylabel('Shear Force')
+        plt.plot(self._beam_body, self._shear_force)
         plt.grid()
         plt.gcf().subplots_adjust(left=0.2)
-        plt.plot(self._beam_body, self._shear_force)
-        plt.savefig(os.path.join(os.getcwd(), r'app_data\sf.png'))
-        fig2 = plt.figure('bending moment')
+        plt.savefig(os.path.join(os.getcwd(), r'app_data\shear_force.png'))
+        plt.figure('bending moment')
         plt.title("Bending Moment Plot")
+        plt.plot(self._beam_body, self._bending_moment)
         plt.xlabel('Distance')
         plt.ylabel('Bending Moment')
         plt.grid()
         plt.gcf().subplots_adjust(left=0.2)
-        plt.plot(self._beam_body, self._bending_moment)
-        plt.savefig(os.path.join(os.getcwd(), r'app_data\bm.png'))
-        fig3 = plt.figure('deflection')
+        plt.savefig(os.path.join(os.getcwd(), r'app_data\bending_moment.png'))
+        plt.figure('deflection')
         plt.title("Beam Deflection")
         plt.xlabel('Distance')
         plt.ylabel('Deflection')
+        plt.plot(self._beam_body, self._deflection)
         plt.grid()
         plt.gcf().subplots_adjust(left=0.2)
-        plt.plot(self._beam_body, self._deflection)
-        plt.savefig(os.path.join(os.getcwd(), r'app_data\defl.png'))
-
-
-def dummy_run():
-
-    # advanced example from cloud beam
-    length = 5
-    supports = [{'support': 'Fixed', 'location': 0.0}]
-    loadsi = [{'type': 'Vertical Load', 'val': -20000.0, 'loc': 4.5},
-              {'type': 'Moment Load', 'val': 40000.0, 'loc': 3.0},
-              {'val2': 2000.0, 'loc2': 4.0, 'type': 'Distributed Load', 'val': 5000.0, 'loc': 1.0}]
-
-    #a = SolveProblem(length, supports, loadsi, 1000)
-
-    # simple indeterminate from text book
-    length = 10.0
-    supports = [{'support': 'Fixed', 'location': 0.0}, {'support': 'Pinned', 'location': 10.0}]
-    loadsi = [{'type': 'Vertical Load', 'val': -300.0, 'loc': 5.0}]
-    #a = SolveProblem(length, supports, loadsi, 1000)
-
-    # Simple Beam
-    length = 5.0
-    supports = [{'support': 'Pinned', 'location': 0.0}, {'support': 'Pinned', 'location': 5.0}]
-    loadsi = [{'val2': -5000.0, 'loc2': 5.0, 'type': 'Distributed Load', 'val': -5000.0, 'loc': 0.0},
-              {'type': 'Axial Load', 'val': -5000.0, 'loc': 2.5}]
-    a = SolveProblem(length, supports, loadsi, 1000)
-
-    # Simple indeterminate problem 2
-    length = 12.0
-    supports = [{'support': 'Fixed', 'location': 0.0}, {'support': 'Fixed', 'location': 12.0}]
-    loadsi = [{'type': 'Vertical Load', 'val': 6000.0, 'loc': 6.0}]
-    #a = SolveProblem(length, supports, loadsi, 1000)
-
-
-dummy_run()
-# Test cases: fixed with distributed load: PASS
-# Test cases: fixed with point load: PASS
-# Test cases: fixed with point, distributed and moment: PASS
-# Test cases: roller/pinned with point load: PASS
-# Test cases: roller/pinned with distributed load: PASS
+        plt.savefig(os.path.join(os.getcwd(), r'app_data\deflection.png'))
+        plt.figure('axialload')
+        plt.title("Axial Load")
+        plt.xlabel('Distance')
+        plt.ylabel('Force')
+        plt.grid()
+        plt.gcf().subplots_adjust(left=0.2)
+        plt.plot(self._beam_body, self._axial_force)
+        plt.savefig(os.path.join(os.getcwd(), r'app_data\axial_force.png'))
