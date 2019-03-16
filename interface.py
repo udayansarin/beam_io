@@ -101,6 +101,7 @@ class Interface:
                     _type = key.split('Sup')[0]
                     _loc = float(line)/self._units.get_len_conversion(self._len_units)
                     reac_str += f"{_type} support at {_loc}{self._len_units}\n"
+                    continue
                 if "moment" in key:
                     conv_ = self._units.get_combined_conversion("Moment Load", self._len_units, self._force_units)
                     units_ = self._units.get_combined_unit("Moment Load", self._len_units, self._force_units)

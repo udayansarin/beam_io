@@ -830,7 +830,7 @@ class SolveProblem:
 
     def _axial_equations(self):
         """
-        identify axial loads on the sturcture and evaluate parameters for axial loading on the beam
+        identify axial loads on the structure and evaluate parameters for axial loading on the beam
         :return:
         """
         # calculate the number of supports with an axial reaction
@@ -843,9 +843,15 @@ class SolveProblem:
             axial_unknowns += 1
         not_axial = True
         for load in self._loads:
-            if load['type'] == 'Axial':
+            if load['type'] == 'Axial Load':
                 not_axial = False
         if (axial_unknowns == 0) or not_axial:
+            # set placeholder values to 0 if there is no axial loading
+            for support in self._supports:
+                if support['support'] == 'Roller':
+                    continue
+                else:
+                    support['obj'].update_ax_loading(0)
             return
         # define the lhs and rhs linalg equations for calculating the axial loading on the structure
         axial_lhs = []
@@ -863,7 +869,6 @@ class SolveProblem:
                 continue
             axial_rhs[ax_equations] -= load['obj'].get_point_loading()
         ax_equations += 1
-
         for index in range(0, len(axial_supports) - 1):
             if ax_equations == axial_unknowns:
                 break
@@ -871,15 +876,22 @@ class SolveProblem:
             for load in self._loads:
                 if not load['type'] == 'Axial Load':
                     continue
+                # parse loads if it is a fully defined simple problem
+                if (index == len(axial_supports) - 2) and (axial_supports[index+1]['location'] < load['loc']):
+                    axial_lhs[ax_equations][index+1] = axial_supports[index]['obj'].ax_get_point_loading()
+                    axial_rhs[ax_equations] = -load['obj'].get_point_loading()
+                    ax_equations += 1
+                    continue
+                # parse loads if statically indeterminate compression needs to be analyzed
                 if axial_supports[index]['location'] < load['loc'] < axial_supports[index+1]['location']:
                     # if the load is between the fixed axial supports, calculate its position
                     load_subtractor = load['loc']
                 # += and -= operators are to allow for superposition if more than one load is between the connections
                 # the second load is -ve because its sign changes based on your frame of reference when looking at the
                 # reaction load at the pinned/fixed joint for deflection versus global reference frame force balance
-                axial_lhs[ax_equations][index] += axial_supports[index]['obj'].get_point_loading() * \
+                axial_lhs[ax_equations][index] += axial_supports[index]['obj'].ax_get_point_loading() * \
                     (load_subtractor-axial_supports[index]['location'])
-                axial_lhs[ax_equations][index+1] -= axial_supports[index+1]['obj'].get_point_loading() * \
+                axial_lhs[ax_equations][index+1] -= axial_supports[index+1]['obj'].ax_get_point_loading() * \
                     (axial_supports[index+1]['location']-load_subtractor)
                 axial_rhs[ax_equations] = 0
             ax_equations += 1
