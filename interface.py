@@ -6,12 +6,43 @@ Contains a tab to present plots, stresses and load result information
 import os
 from tkinter import *
 from tkinter import ttk
-from PIL import ImageTk, Image
-from colorama import Fore
 
 import units
 import loads
 import beam_solver as bs
+
+import matplotlib
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+matplotlib.use('TkAgg')
+
+
+class GUIPlotter:
+    """
+    Generic class to create a matplotlib tkinter plot using canvas tools
+    """
+    @staticmethod
+    def make_plot(_x, _y, _window, x_axis=None, y_axis=None, plot_title=None):
+        """
+        create a matplotlib plot instance in a wkinter frame/window
+        :param _x: x list to plot
+        :param _y: y list to plot
+        :param _window: tkinter widget to develop the plot in
+        :param x_axis: x axis label
+        :param y_axis: y axis label
+        :param plot_title: plot title
+        :return:
+        """
+        fig = Figure(figsize=(9, 4))
+        a = fig.add_subplot(111)
+        a.set_title(plot_title)
+        a.set_xlabel(x_axis)
+        a.set_ylabel(y_axis)
+        a.grid()
+        a.plot(_x, _y, color='red')
+
+        canvas = FigureCanvasTkAgg(fig, master=_window)
+        return canvas
 
 
 class Interface:
@@ -91,6 +122,10 @@ class Interface:
         return
 
     def _display_reactions(self):
+        """
+        populate the reactions window with the reaction loads calculated for each support in the structure
+        :return:
+        """
         reactions = self._results_dict['Reactions']
         _row = 0
         _column = 0
@@ -119,6 +154,10 @@ class Interface:
         return
 
     def _setup_results_tab(self):
+        """
+        populate the force and loading results tab with tkinter widgets to display the reaction loads
+        :return:
+        """
         self._widgets['TabControl'].add(self._widgets['ResultsTab'], text='Results')
         self._widgets['ReactionsFrame'] = LabelFrame(self._widgets['ResultsTab'])
         self._widgets['ReactionsFrame'].pack()
@@ -145,6 +184,10 @@ class Interface:
         return
 
     def _create_plotter(self):
+        """
+        populate plotter frame with tkinter widgets
+        :return:
+        """
         self._widgets['PlotSelectionFrame'] = Frame(self._widgets['PlotsFrame'])
         self._widgets['PlotDisplay'] = Frame(self._widgets['PlotsFrame'])
         self._widgets['PlotSelectionFrame'].pack()
@@ -161,21 +204,41 @@ class Interface:
         return
 
     def _display_image(self):
+        """
+        create a tkinter Figure of the desired plot on the basis of user input
+        :return:
+        """
         target_file = self._widgets["PlotSelectionVar"].get()
-        target_file = "app_data\\" + target_file.lower().replace(' ', '_') + '.png'
-        if "select_plot.png" in target_file:
+        #target_file = "app_data\\" + target_file.lower().replace(' ', '_') + '.png'
+        if "Select Plot" == target_file:
             return
+        target_ = target_file.replace(' ', '')
+        x_to_plot = [x/self._units.get_len_conversion(self._len_units) for x in self._results_dict['Beam']]
+        if "Moment" in target_:
+            units_ = self._units.get_combined_unit('Moment Load', self._len_units, self._force_units)
+            conv_ = self._units.get_combined_conversion('Moment Load', self._len_units, self._force_units)
+        else:
+            units_ = self._force_units
+            conv_ = self._units.get_force_conversion(self._force_units)
+        y_to_plot = [y/conv_ for y in self._results_dict[target_]]
         try:
-            self._widgets['Imageview'].pack_forget()
+            self._widgets['PlotView'].get_tk_widget().pack_forget()
         except KeyError:
             pass
-        plot_file = os.path.join(os.getcwd(), target_file)
-        self._widgets['Image'] = ImageTk.PhotoImage(Image.open(plot_file))
-        self._widgets['Imageview'] = Label(self._widgets['PlotDisplay'], image=self._widgets['Image'])
-        self._widgets['Imageview'].pack()
+        self._widgets['PlotView'] = \
+            GUIPlotter.make_plot(x_to_plot, y_to_plot, self._widgets['PlotDisplay'],
+                                 f"Beam Length {self._len_units}", f"{target_file} {units_}", target_file)
+        self._widgets['PlotView'].get_tk_widget().pack()
+        self._widgets['PlotView'].draw()
         return
 
     def _update_results(self, loc_slider):
+        """
+        provide the user with loading - shear, bending moment and axial loading values for a given value on the length
+        of theh structure on the basis of a Tkinter slider input
+        :param loc_slider: tkinter slider widget
+        :return:
+        """
         target_location = loc_slider.get()*self._units.get_len_conversion(self._len_units)
         _ax = self._results_dict['AxialForce']
         _sf = self._results_dict['ShearForce']
@@ -196,6 +259,10 @@ class Interface:
         return
 
     def _setup_problem_tab(self):
+        """
+        develop the window to be populated with widgets to accept problem specifics
+        :return:
+        """
         # Populate sub-frames in the problem setup tab
         self._widgets['BeamFrame'] = LabelFrame(self._widgets['ProblemTab'], padx=30)
         self._widgets['BeamFrame'].grid(row=0, column=0)
@@ -582,4 +649,5 @@ class Interface:
         return
 
 
-it = Interface()
+if __name__ == '__main__':
+    it = Interface()

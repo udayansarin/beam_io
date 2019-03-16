@@ -826,7 +826,6 @@ class SolveProblem:
         self._get_deflection_equations()  # slope equations from evaluating locations of zero deflection
         self._axial_equations()
         self._parse_results()  # solve system of linear equations and develop result datasets
-        self._make_plots()
 
     def _axial_equations(self):
         """
@@ -1050,41 +1049,3 @@ class SolveProblem:
         results_dict = {'ShearForce': self._shear_force, 'BendingMoment': self._bending_moment, 'Beam': self._beam_body,
                         'Deflection': self._deflection, 'AxialForce': self._axial_force, "Reactions": reactions}
         return results_dict
-
-    def _make_plots(self):
-        """
-        develop plots to display matplotlib data
-        :return:
-        """
-        plt.figure('shear force')
-        plt.title("Shear Force Plot")
-        plt.xlabel('Distance')
-        plt.ylabel('Shear Force')
-        plt.plot(self._beam_body, self._shear_force)
-        plt.grid()
-        plt.gcf().subplots_adjust(left=0.2)
-        plt.savefig(os.path.join(os.getcwd(), r'app_data\shear_force.png'))
-        plt.figure('bending moment')
-        plt.title("Bending Moment Plot")
-        plt.plot(self._beam_body, self._bending_moment)
-        plt.xlabel('Distance')
-        plt.ylabel('Bending Moment')
-        plt.grid()
-        plt.gcf().subplots_adjust(left=0.2)
-        plt.savefig(os.path.join(os.getcwd(), r'app_data\bending_moment.png'))
-        plt.figure('deflection')
-        plt.title("Beam Deflection")
-        plt.xlabel('Distance')
-        plt.ylabel('Deflection')
-        plt.plot(self._beam_body, self._deflection)
-        plt.grid()
-        plt.gcf().subplots_adjust(left=0.2)
-        plt.savefig(os.path.join(os.getcwd(), r'app_data\deflection.png'))
-        plt.figure('axialload')
-        plt.title("Axial Load")
-        plt.xlabel('Distance')
-        plt.ylabel('Force')
-        plt.grid()
-        plt.gcf().subplots_adjust(left=0.2)
-        plt.plot(self._beam_body, self._axial_force)
-        plt.savefig(os.path.join(os.getcwd(), r'app_data\axial_force.png'))
