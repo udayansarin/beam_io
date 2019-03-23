@@ -12,6 +12,7 @@ import loads
 import beam_solver as bs
 
 import matplotlib
+import matplotlib.patches as patches
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 matplotlib.use('TkAgg')
@@ -44,6 +45,36 @@ class GUIPlotter:
         canvas = FigureCanvasTkAgg(fig, master=_window)
         return canvas
 
+    @staticmethod
+    def plot_cross_section(_rectangles, _window, x_axis=None, y_axis=None, plot_title=None, stress_val=None):
+        if not stress_val:
+            font_ = 8
+        else:
+            font_ = 12
+        max_side = 0
+        fig = Figure(figsize=(3, 3))
+        a = fig.add_subplot(111)
+        for rect in _rectangles:
+            y_coor = rect['y_loc']
+            x_coor = rect['x_loc']
+            width = rect['b']
+            height = rect['h']
+            if (y_coor + height) > max_side:
+                max_side = y_coor + 1.5 * height
+            if (x_coor + width) > max_side:
+                max_side = x_coor + 1.5 * width
+            a.add_patch(patches.Rectangle((x_coor, y_coor), width, height, fill=False, edgecolor='r'))
+        a.set_title(plot_title, fontsize=font_)
+        a.set_xlabel(x_axis, fontsize=font_-2)
+        a.set_ylabel(y_axis, fontsize=font_-2)
+        a.tick_params(axis='both', which='major', labelsize=font_-2)
+        a.tick_params(axis='both', which='minor', labelsize=font_-2)
+        a.set_xlim(0, max_side)
+        a.set_ylim(0, max_side)
+        a.grid()
+        canvas = FigureCanvasTkAgg(fig, master=_window)
+        return canvas
+
 
 class Interface:
     """
@@ -55,7 +86,9 @@ class Interface:
         self._supports = []
         self._beam_defined = False
         self._loads = []
-        self._special_properties = {}
+        self._rectangles = None
+        self._cross_section_unit = None
+        self._advanced_properties = {}
         self._len_units = None
         self._force_units = None
         self._beam_len = None
@@ -92,7 +125,7 @@ class Interface:
                     if support['support'] == 'Pinned':
                         suff_support = True
                         break
-            if not suff_support and (len(self._supports)<2):
+            if not suff_support and (len(self._supports) < 2):
                 raise RuntimeError("Insufficient defining features to solve problem\n")
         except RuntimeError as e:
             self.output(e)
@@ -100,7 +133,258 @@ class Interface:
         _sol = bs.SolveProblem(self._beam_len, self._supports, self._loads, self._resolution)
         self._results_dict = _sol.get_results()
         self._setup_results_tab()
+        self._setup_advanced_tab()
+        return
+
+    def _setup_advanced_tab(self):
+        """
+        setup a tkinter window tab to accept and display advanced problem information - input: material properties
+        output: deflection, stresses
+        :return:
+        """
+        self._rectangles = []
         self._widgets['TabControl'].add(self._widgets['AdvancedTab'], text='Advanced Properties')
+        self._widgets['MechInputFrame'] = LabelFrame(self._widgets['AdvancedTab'])
+        self._widgets['MechInputFrame'].pack()
+        self._widgets['MechOutputFrame'] = LabelFrame(self._widgets['AdvancedTab'])
+        self._widgets['MechOutputFrame'].pack()
+        self._widgets['ExplicitPropsSection'] = LabelFrame(self._widgets['MechInputFrame'])
+        self._widgets['ImplicitPropsFrame'] = LabelFrame(self._widgets['MechInputFrame'])
+        self._widgets['ImplicitCrossSection'] = LabelFrame(self._widgets['MechInputFrame'])
+        self._widgets['ExplicitPropsSection'].pack(side=LEFT)
+        self._widgets['ImplicitCrossSection'].pack(side=RIGHT)
+        self._widgets['ImplicitPropsFrame'].pack(side=RIGHT)
+        self._widgets['ExplicitPropsFrame'] = LabelFrame(self._widgets['ExplicitPropsSection'])
+        self._widgets['ExplicitPropsFrame'].pack()
+        self._widgets['AdvancedStatus'] = Text(self._widgets['ExplicitPropsSection'], height=6, width=30)
+        self._widgets['AdvancedStatus'].pack()
+        self.output('waiting..', adv_window=True)
+        self._defined_implicit_frame()
+
+        self._widgets['AdvancedPlotFrame'] = LabelFrame(self._widgets['MechOutputFrame'])
+        self._widgets['AdvancedPlotFrame'].pack()
+
+        Label(self._widgets['ExplicitPropsFrame'], text="Enter Young's Modulus").grid(row=0, column=0)
+        self._widgets['YoungsEntry'] = Entry(self._widgets['ExplicitPropsFrame'], width=5)
+        self._widgets['YoungsUnit'] = StringVar(self._widgets['ExplicitPropsFrame'])
+        self._widgets['YoungsUnit'].set('--')
+        self._widgets['YoungsMenu'] = OptionMenu(self._widgets['ExplicitPropsFrame'], self._widgets['YoungsUnit'],
+                                                 *['GPa', 'Mpsi'])
+        self._widgets['YoungsEntry'].grid(row=0, column=1)
+        self._widgets['YoungsMenu'].grid(row=0, column=2)
+        Label(self._widgets['ExplicitPropsFrame'], text="Enter Moment of Area").grid(row=1, column=0)
+        self._widgets['MomAreaEntry'] = Entry(self._widgets['ExplicitPropsFrame'], width=5)
+        self._widgets['MomAreaUnit'] = StringVar(self._widgets['ExplicitPropsFrame'])
+        self._widgets['MomAreaUnit'].set('--')
+        self._widgets['MomAreaMenu'] = OptionMenu(self._widgets['ExplicitPropsFrame'], self._widgets['MomAreaUnit'],
+                                                  *['cm^4', 'in^4'])
+        self._widgets['MomAreaEntry'].grid(row=1, column=1)
+        self._widgets['MomAreaMenu'].grid(row=1, column=2)
+
+        self._widgets['AdvancedPlotControl'] = Frame(self._widgets['AdvancedPlotFrame'])
+        self._widgets['AdvancedPlotControl'].pack()
+        self._widgets['LockAdvancedProp'] = Button(self._widgets['AdvancedPlotControl'], text="Submit Properties",
+                                                   command=lambda: self._get_advanced_properties())
+        self._widgets['LockAdvancedProp'].config(font=("Helvetica", 15))
+        self._widgets['LockAdvancedProp'].pack(side=LEFT, padx=30)
+        self._widgets['AdvancedPropTargets'] = Frame(self._widgets['AdvancedPlotControl'])
+        self._widgets['AdvancedPropTargets'].pack(side=RIGHT)
+        self._widgets['AdvancedPlotDisplay'] = Frame(self._widgets['MechOutputFrame'])
+        self._widgets['AdvancedPlotDisplay'].pack()
+        return
+
+    def _pop_adv_plot_control(self):
+        self._widgets['AdvancedPlotVar'] = StringVar(self._widgets['AdvancedPropTargets'])
+        self._widgets['AdvancedPlotVar'].set("Select Plot")
+        self._widgets['AdvancedPlotMenu'] = OptionMenu(self._widgets['AdvancedPropTargets'],
+                                                       self._widgets['AdvancedPlotVar'],
+                                                       *['Deflection', 'Shear Stress', 'Axial Stress', 'von Mises'])
+        self._widgets['AdvancedPlotMenu'].grid(row=0, column=0)
+        self._widgets['AdvancedPlotButton'] = Button(self._widgets['AdvancedPropTargets'], text="Plot",
+                                                     command=lambda: self._get_advanced_plots())
+        self._widgets['AdvancedPlotButton'].grid(row=0, column=1)
+        Label(self._widgets['AdvancedPropTargets'],
+              text=f'Select Stress Location: {self._len_units}').grid(row=1, column=0)
+        _scaled_len = self._beam_len / self._units.get_len_conversion(self._len_units)
+        self._widgets['StressLocationSelector'] = Scale(self._widgets['AdvancedPropTargets'], from_=0, to=_scaled_len,
+                                                        resolution=_scaled_len / self._resolution, orient=HORIZONTAL,
+                                                        command=lambda x: self._update_results(
+                                                            self._widgets['StressLocationSelector']))
+        self._widgets['StressLocationSelector'].grid(row=2, column=0)
+        return
+
+    def _defined_implicit_frame(self):
+        self._widgets['ImplicitComFrame'] = LabelFrame(self._widgets['ImplicitPropsFrame'])
+        self._widgets['ImplicitSketchFrame'] = LabelFrame(self._widgets['ImplicitPropsFrame'])
+        self._widgets['ImplicitComFrame'].pack()
+        self._widgets['ImplicitSketchFrame'].pack()
+        Label(self._widgets['ImplicitComFrame'], text="Draw Custom Cross Section").pack()
+
+        self._widgets['ImplicitControl'] = Frame(self._widgets['ImplicitSketchFrame'])
+        self._widgets['ImplicitControl'].pack()
+        self._widgets['ImplicitConfirm'] = Frame(self._widgets['ImplicitSketchFrame'])
+        self._widgets['ImplicitConfirm'].pack()
+        Label(self._widgets['ImplicitControl'], text='Select Position Unit: ').grid(row=0, column=0)
+        self._widgets['CrossSectionVar'] = StringVar(self._widgets['ImplicitControl'])
+        self._widgets['CrossSectionVar'].set("--")
+        self._widgets['CrossSectionMenu'] = OptionMenu(self._widgets['ImplicitControl'],
+                                                       self._widgets['CrossSectionVar'], *self._units.get_len_units())
+        self._widgets['CrossSectionMenu'].grid(row=0, column=1)
+        Label(self._widgets['ImplicitControl'], text='Enter Rectangle Width: ').grid(row=1, column=0)
+        self._widgets['RectangleWidth'] = Entry(self._widgets['ImplicitControl'], width=5)
+        self._widgets['RectangleWidth'].grid(row=1, column=1)
+        Label(self._widgets['ImplicitControl'], text='Enter Rectangle Height: ').grid(row=2, column=0)
+        self._widgets['RectangleHeight'] = Entry(self._widgets['ImplicitControl'], width=5)
+        self._widgets['RectangleHeight'].grid(row=2, column=1)
+        Label(self._widgets['ImplicitControl'], text='Enter Rectangle X: ').grid(row=3, column=0)
+        self._widgets['RectangleX'] = Entry(self._widgets['ImplicitControl'], width=5)
+        self._widgets['RectangleX'].grid(row=3, column=1)
+        Label(self._widgets['ImplicitControl'], text='Enter Rectangle Y: ').grid(row=4, column=0)
+        self._widgets['RectangleY'] = Entry(self._widgets['ImplicitControl'], width=5)
+        self._widgets['RectangleY'].grid(row=4, column=1)
+        self._widgets['SubmitSupport'] = Button(self._widgets['ImplicitConfirm'], text="Submit",
+                                                command=lambda: self._add_rectangle())
+        self._widgets['ClearRecentSupport'] = Button(self._widgets['ImplicitConfirm'], text='Undo',
+                                                     command=lambda: self._clear_rectangle())
+        self._widgets['SubmitSupport'].config(font=("Helvetica", 15))
+        self._widgets['ClearRecentSupport'].config(font=("Helvetica", 15))
+        self._widgets['SubmitSupport'].grid(row=0, column=0, padx=10, pady=5)
+        self._widgets['ClearRecentSupport'].grid(row=0, column=1, padx=10, pady=6)
+
+    def _add_rectangle(self):
+        try:
+            if not (self._cross_section_unit == self._widgets['CrossSectionVar'].get()):
+                _current = self._widgets['CrossSectionVar'].get()
+                if _current == '--':
+                    raise RuntimeError("Please select a unit")
+                if self._cross_section_unit:
+                    self.output("Cross-section units have been changed, clearing old design..", adv_window=True)
+                    self._rectangles = []
+                self._cross_section_unit = _current
+            width = float(self._widgets['RectangleWidth'].get())
+            height = float(self._widgets['RectangleHeight'].get())
+            x = float(self._widgets['RectangleX'].get())
+            y = float(self._widgets['RectangleY'].get())
+        except ValueError:
+            self.output('Invalid location/dimension for cross-section member..', adv_window=True)
+            return
+        except RuntimeError as e:
+            self.output(f"Runtime error in cross-section design: {e}")
+            return
+        self._rectangles.append({
+            'b': width,
+            'h': height,
+            'x_loc': x,
+            'y_loc': y
+        })
+        self._widgets['RectangleWidth'].delete(0, 'end')
+        self._widgets['RectangleHeight'].delete(0, 'end')
+        self._widgets['RectangleX'].delete(0, 'end')
+        self._widgets['RectangleY'].delete(0, 'end')
+        print(self._rectangles)
+        self._update_cross_section_plot()
+        return
+
+    def _clear_rectangle(self):
+        self._rectangles.pop()
+        self._update_cross_section_plot()
+        print(self._rectangles)
+
+    def _update_cross_section_plot(self):
+        try:
+            self._widgets['CrossSecPlot'].get_tk_widget().pack_forget()
+        except KeyError:
+            pass
+        self._widgets['CrossSecPlot'] = GUIPlotter.plot_cross_section(self._rectangles,
+                                                                      self._widgets['ImplicitCrossSection'],
+                                                                      f'{self._cross_section_unit}',
+                                                                      f'{self._cross_section_unit}',
+                                                                      "Beam Cross Section")
+        self._widgets['CrossSecPlot'].get_tk_widget().pack()
+        self._widgets['CrossSecPlot'].draw()
+
+    def _get_advanced_plots(self):
+        target_ = self._widgets['AdvancedPlotVar'].get()
+        if target_ == "Deflection":
+            self._get_deflection_plots()
+        if ("Stress" in target_) or ("von" in target_):
+            self._get_stress_plots(target_)
+        else:
+            self.output("Please select a plot!", adv_window=True)
+        return
+
+    def _get_advanced_properties(self):
+        try:
+            u_e = self._widgets['YoungsUnit'].get()
+            _e = float(self._widgets['YoungsEntry'].get())
+            if u_e == '--':
+                raise ValueError("Please select a valid E unit")
+            self._advanced_properties['E'] = _e*self._units.get_stress_conversion(u_e)
+        except ValueError as e:
+            self.output(e, adv_window=True)
+            return
+        if not self._rectangles:
+            print("User has not developed a custom cross-section")
+            try:
+                u_i = self._widgets['MomAreaUnit'].get()
+                _i = float(self._widgets['MomAreaEntry'].get())
+                if u_i == '--':
+                    raise ValueError("Please enter a valid I unit")
+                self._advanced_properties['I'] = _i*(self._units.get_len_conversion(u_i.split('^')[0]))**4
+            except ValueError as e:
+                print(e)
+                return
+        else:
+            _a = 0
+            _ya = 0
+            _i = 0
+            for rect in self._rectangles:
+                _a += rect['b'] * rect['h']
+                _ya += ((rect['h']/2)+rect['y_loc'])*rect['b']*rect['h']
+            _yna = _ya / _a
+
+            for rect in self._rectangles:
+                i1 = (1/12)*rect['b']*(rect['h']**3)
+                i2 = rect['b']*rect['h']*(_yna-rect['y_loc']-(rect['h']/2))**2
+                _i += (i1 + i2)
+            self._advanced_properties['I'] = _i*(self._units.get_len_conversion(self._cross_section_unit))**4
+            self._advanced_properties['A'] = _a*(self._units.get_len_conversion(self._cross_section_unit))**2
+            self._advanced_properties['yNA'] = _yna*(self._units.get_len_conversion(self._cross_section_unit))
+        self._pop_adv_plot_control()
+        return
+
+    def _get_stress_plots(self, target_plot):
+        try:
+            self._widgets['AdvPlotView'].get_tk_widget().pack_forget()
+        except KeyError:
+            pass
+        _loc = self._widgets['StressLocationSelector'].get()
+        _beam = self._results_dict['Beam']
+        loc_diff = [abs(_loc - target_val) for target_val in _beam]
+        target_ind = loc_diff.index(min(loc_diff))
+        _axial_force = self._results_dict['AxialForce'][target_ind]
+        _shear_force = self._results_dict['ShearForce'][target_ind]
+        _bending_moment = self._results_dict['BendingMoment'][target_ind]
+
+        # Todo: Create stress plot and output to the AdvPlotViewWindow
+        print(target_plot)
+        print(_axial_force, _shear_force, _bending_moment)
+        return
+
+    def _get_deflection_plots(self):
+        x_plot = [x/self._units.get_len_conversion(self._len_units) for x in self._results_dict['Beam']]
+        y_plot = [y*self._advanced_properties['E']*self._advanced_properties['I']/(self._units.get_len_conversion(
+            self._len_units)) for y in self._results_dict['Deflection']]
+        try:
+            self._widgets['AdvPlotView'].get_tk_widget().pack_forget()
+        except KeyError:
+            pass
+        self._widgets['AdvPlotView'] = \
+            GUIPlotter.make_plot(x_plot, y_plot, self._widgets['AdvancedPlotDisplay'],
+                                 f"Beam Length {self._len_units}", f"Deflection {self._len_units}", "Deflection")
+        self._widgets['AdvPlotView'].get_tk_widget().pack()
+        self._widgets['AdvPlotView'].draw()
+        self.output('Deflection plot displayed', adv_window=True)
         return
 
     def _populate_window(self):
@@ -170,8 +454,8 @@ class Interface:
         _scaled_len = self._beam_len/self._units.get_len_conversion(self._len_units)
         self._widgets['LocationSelector'] = Scale(self._widgets['SliderFrame'], from_=0, to=_scaled_len,
                                                   resolution=_scaled_len/self._resolution, orient=HORIZONTAL,
-                                                  command=
-                                                  lambda x: self._update_results(self._widgets['LocationSelector']))
+                                                  command=lambda x: self._update_results(
+                                                      self._widgets['LocationSelector']))
         self._widgets['LocationSelector'].grid(row=2, column=0)
         Label(self._widgets['SliderFrame'], text="Results at Selected Location").grid(row=0, column=1)
         self._widgets['AxialResults'] = Label(self._widgets['SliderFrame'], width=50)
@@ -209,7 +493,6 @@ class Interface:
         :return:
         """
         target_file = self._widgets["PlotSelectionVar"].get()
-        #target_file = "app_data\\" + target_file.lower().replace(' ', '_') + '.png'
         if "Select Plot" == target_file:
             return
         target_ = target_file.replace(' ', '')
@@ -638,14 +921,18 @@ class Interface:
         self._widgets['LoadLine'].insert(INSERT, add_load_text)
         return
 
-    def output(self, string):
+    def output(self, string, adv_window=False):
         """
         print string and display it on the commandline provided on the master tkinter window
-        :param string:
+        :param string: string to be output
+        :param adv_window: indicate whether the output goes on the regular or advanced frame command output
         :return:
         """
         print(str(string))
-        self._widgets['CommandLine'].insert(INSERT, f'\n{string}')
+        if not adv_window:
+            self._widgets['CommandLine'].insert(INSERT, f'\n{string}')
+        else:
+            self._widgets['AdvancedStatus'].insert(INSERT, f'\n{string}')
         return
 
 
