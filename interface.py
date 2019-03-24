@@ -10,6 +10,7 @@ from tkinter import ttk
 import units
 import loads
 import beam_solver as bs
+import stress_solver as ss
 
 import matplotlib
 import matplotlib.patches as patches
@@ -46,13 +47,17 @@ class GUIPlotter:
         return canvas
 
     @staticmethod
-    def plot_cross_section(_rectangles, _window, x_axis=None, y_axis=None, plot_title=None, stress_val=None):
+    def plot_cross_section(_rectangles, _window, x_axis=None, y_axis=None, plot_title=None, stress_val=None,
+                           cross_section_range=None):
         if not stress_val:
             font_ = 8
         else:
             font_ = 12
         max_side = 0
-        fig = Figure(figsize=(3, 3))
+        if not stress_val:
+            fig = Figure(figsize=(3, 3))
+        else:
+            fig = Figure(figsize=(9, 4))
         a = fig.add_subplot(111)
         for rect in _rectangles:
             y_coor = rect['y_loc']
@@ -64,6 +69,9 @@ class GUIPlotter:
             if (x_coor + width) > max_side:
                 max_side = x_coor + 1.5 * width
             a.add_patch(patches.Rectangle((x_coor, y_coor), width, height, fill=False, edgecolor='r'))
+        if stress_val:
+            img = a.imshow(stress_val, cmap='cool', extent=[0, cross_section_range[0], 0, cross_section_range[1]])
+            fig.colorbar(img, ax=a)
         a.set_title(plot_title, fontsize=font_)
         a.set_xlabel(x_axis, fontsize=font_-2)
         a.set_ylabel(y_axis, fontsize=font_-2)
@@ -92,6 +100,7 @@ class Interface:
         self._len_units = None
         self._force_units = None
         self._beam_len = None
+        self._stress_units = None
         self._logo = os.path.join(os.getcwd(), 'I-beam.png.ico')
         self._units = units.UnitControl()
         self._setup = loads.SetupControl()
@@ -319,12 +328,16 @@ class Interface:
             _e = float(self._widgets['YoungsEntry'].get())
             if u_e == '--':
                 raise ValueError("Please select a valid E unit")
+            if "Pa" in u_e:
+                self._stress_units = 'MPa'
+            else:
+                self._stress_units = 'kpsi'
             self._advanced_properties['E'] = _e*self._units.get_stress_conversion(u_e)
         except ValueError as e:
             self.output(e, adv_window=True)
             return
         if not self._rectangles:
-            print("User has not developed a custom cross-section")
+            self.output("User has not developed a custom cross-section", adv_window=True)
             try:
                 u_i = self._widgets['MomAreaUnit'].get()
                 _i = float(self._widgets['MomAreaEntry'].get())
@@ -332,7 +345,7 @@ class Interface:
                     raise ValueError("Please enter a valid I unit")
                 self._advanced_properties['I'] = _i*(self._units.get_len_conversion(u_i.split('^')[0]))**4
             except ValueError as e:
-                print(e)
+                self.output(e, adv_window=True)
                 return
         else:
             _a = 0
@@ -358,6 +371,9 @@ class Interface:
             self._widgets['AdvPlotView'].get_tk_widget().pack_forget()
         except KeyError:
             pass
+        if not self._rectangles:
+            self.output("Cannot solve stresses without cross-section", adv_window=True)
+            return
         _loc = self._widgets['StressLocationSelector'].get()
         _beam = self._results_dict['Beam']
         loc_diff = [abs(_loc - target_val) for target_val in _beam]
@@ -365,10 +381,28 @@ class Interface:
         _axial_force = self._results_dict['AxialForce'][target_ind]
         _shear_force = self._results_dict['ShearForce'][target_ind]
         _bending_moment = self._results_dict['BendingMoment'][target_ind]
-
-        # Todo: Create stress plot and output to the AdvPlotViewWindow
-        print(target_plot)
-        print(_axial_force, _shear_force, _bending_moment)
+        stress_sol = ss.StressSolver(self._rectangles, self._advanced_properties, _bending_moment, _shear_force,
+                                     _axial_force)
+        shear_s, axial_s, sec_size = stress_sol.get_stresses()
+        for row, shear_x in enumerate(shear_s):
+            for index, shear in enumerate(shear_x):
+                shear_s[row][index] = shear/self._units.get_stress_conversion(self._stress_units)
+        for row, axial_x in enumerate(axial_s):
+            for index, axial in enumerate(axial_x):
+                axial_s[row][index] = axial/self._units.get_stress_conversion(self._stress_units)
+        if target_plot == "Axial Stress":
+            self._widgets['AdvPlotView'] = GUIPlotter.plot_cross_section(
+                self._rectangles, self._widgets['AdvancedPlotDisplay'],self._cross_section_unit,
+                self._cross_section_unit, f"Axial Stress in {self._stress_units}", axial_s, sec_size)
+        elif target_plot == "Shear Stress":
+            self._widgets['AdvPlotView'] = GUIPlotter.plot_cross_section(
+                self._rectangles, self._widgets['AdvancedPlotDisplay'], self._cross_section_unit,
+                self._cross_section_unit, f"Shear Stress in {self._stress_units})", shear_s, sec_size)
+        self._widgets['AdvPlotView'].get_tk_widget().pack()
+        self._widgets['AdvPlotView'].draw()
+        self.output(f'{target_plot} plot displayed', adv_window=True)
+        print_list1 = []
+        print_list2 = []
         return
 
     def _get_deflection_plots(self):

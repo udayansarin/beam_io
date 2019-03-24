@@ -1,6 +1,6 @@
 """
 author: @Udayan Sarin
-Contins information pertaining to units and conversions that beam_io is compatible with
+Contains information pertaining to units and conversions that beam_io is compatible with
 """
 import configparser as config
 import os
