@@ -6,6 +6,7 @@ Contains a tab to present plots, stresses and load result information
 import os
 from tkinter import *
 from tkinter import ttk
+from PIL import ImageTk, Image
 
 import units
 import loads
@@ -428,16 +429,28 @@ class Interface:
         """
         # Define upper level tab design for beam_io interface
         self._widgets['TabControl'] = ttk.Notebook(self._root)
+        self._widgets['IntroTab'] = ttk.Frame(self._widgets['TabControl'])
+        self._widgets['TabControl'].add(self._widgets['IntroTab'], text='Read Me')
+        self._widgets['TabControl'].pack(expand=1, fill='both')
         self._widgets['ProblemTab'] = ttk.Frame(self._widgets['TabControl'])
-        self._widgets['TabControl'].add(self._widgets['ProblemTab'], text='Basic Geometry')
+        self._widgets['TabControl'].add(self._widgets['ProblemTab'], text='Start Solving!')
         self._widgets['AdvancedTab'] = ttk.Frame(self._widgets['TabControl'])
         self._widgets['ResultsTab'] = ttk.Frame(self._widgets['TabControl'])
-        self._widgets['HelpTab'] = ttk.Frame(self._widgets['TabControl'])
-        self._widgets['TabControl'].add(self._widgets['HelpTab'], text='Help')
-        self._widgets['TabControl'].pack(expand=1, fill='both')
-
         self._setup_problem_tab()
+        self._setup_intro_tab()
         return
+
+    def _setup_intro_tab(self):
+        target_dir = os.path.join(os.getcwd(), 'app_data')
+        with open(os.path.join(target_dir, "disclaimer.txt"), 'r') as f:
+            dis_text = f.read()
+        self._widgets['Disclaimer'] = Message(self._widgets['IntroTab'], width=805)
+        self._widgets['Disclaimer'].pack()
+        self._widgets['Disclaimer'].config(text=dis_text)
+        self._widgets['Disclaimer2'] = ImageTk.PhotoImage(Image.open(os.path.join(target_dir, "disclaimer.png")))
+        self._widgets['Disclaimer2Disp'] = Label(self._widgets['IntroTab'], image=self._widgets['Disclaimer2'])
+        self._widgets['Disclaimer2Disp'].pack()
+
 
     def _display_reactions(self):
         """
