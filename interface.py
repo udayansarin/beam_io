@@ -451,7 +451,6 @@ class Interface:
         self._widgets['Disclaimer2Disp'] = Label(self._widgets['IntroTab'], image=self._widgets['Disclaimer2'])
         self._widgets['Disclaimer2Disp'].pack()
 
-
     def _display_reactions(self):
         """
         populate the reactions window with the reaction loads calculated for each support in the structure
