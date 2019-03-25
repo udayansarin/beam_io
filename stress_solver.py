@@ -34,8 +34,8 @@ class StressSolver:
         calculate shear and axial stresses developed at a given location on the beam, for a given cross-section
         :return:
         """
-        cx_w = np.arange(0, self._len_cx, ((self._width_cx + self._len_cx) / 2000))
-        cx_h = np.arange(0, self._width_cx, ((self._width_cx + self._len_cx) / 2000))
+        cx_w = np.arange(0, self._len_cx, ((self._width_cx + self._len_cx) / 1000))
+        cx_h = np.arange(0, self._width_cx, ((self._width_cx + self._len_cx) / 100))
         shear_stress = [[0] * len(cx_h)] * len(cx_w)
         axial_stress = [[0] * len(cx_h)] * len(cx_w)
 
