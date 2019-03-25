@@ -384,7 +384,7 @@ class Interface:
         _bending_moment = self._results_dict['BendingMoment'][target_ind]
         stress_sol = ss.StressSolver(self._rectangles, self._advanced_properties, _bending_moment, _shear_force,
                                      _axial_force)
-        shear_s, axial_s, sec_size = stress_sol.get_stresses()
+        shear_s, axial_s, sec_size = stress_sol.get_stresses(self._cross_section_unit, self._stress_units)
         for row, shear_x in enumerate(shear_s):
             for index, shear in enumerate(shear_x):
                 shear_s[row][index] = shear/self._units.get_stress_conversion(self._stress_units)
@@ -393,7 +393,7 @@ class Interface:
                 axial_s[row][index] = axial/self._units.get_stress_conversion(self._stress_units)
         if target_plot == "Axial Stress":
             self._widgets['AdvPlotView'] = GUIPlotter.plot_cross_section(
-                self._rectangles, self._widgets['AdvancedPlotDisplay'],self._cross_section_unit,
+                self._rectangles, self._widgets['AdvancedPlotDisplay'], self._cross_section_unit,
                 self._cross_section_unit, f"Axial Stress in {self._stress_units}", axial_s, sec_size)
         elif target_plot == "Shear Stress":
             self._widgets['AdvPlotView'] = GUIPlotter.plot_cross_section(
@@ -402,8 +402,6 @@ class Interface:
         self._widgets['AdvPlotView'].get_tk_widget().pack()
         self._widgets['AdvPlotView'].draw()
         self.output(f'{target_plot} plot displayed', adv_window=True)
-        print_list1 = []
-        print_list2 = []
         return
 
     def _get_deflection_plots(self):
