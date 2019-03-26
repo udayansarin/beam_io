@@ -10,8 +10,6 @@ models for the structure being analyzed
 """
 import numpy as np
 import loads
-import os
-import matplotlib.pyplot as plt
 
 
 def _h(limit, current_position):

@@ -406,7 +406,7 @@ class Interface:
 
     def _get_deflection_plots(self):
         x_plot = [x/self._units.get_len_conversion(self._len_units) for x in self._results_dict['Beam']]
-        y_plot = [y*self._advanced_properties['E']*self._advanced_properties['I']/(self._units.get_len_conversion(
+        y_plot = [y/(self._advanced_properties['E']*self._advanced_properties['I'])/(self._units.get_len_conversion(
             self._len_units)) for y in self._results_dict['Deflection']]
         try:
             self._widgets['AdvPlotView'].get_tk_widget().pack_forget()

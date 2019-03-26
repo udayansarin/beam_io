@@ -63,10 +63,8 @@ class StressSolver:
             else:
                 y_dash = 0
             q = y_dash * a_dash
-            shear_stress[len(cx_w) - index - 1] = [(self._sf * q / (self._prop['I'] * thick)) /
-                                                   self._units.get_stress_conversion(stress_unit)] * len(cx_h)
+            shear_stress[len(cx_w) - index - 1] = [(self._sf * q / (self._prop['I'] * thick))] * len(cx_h)
             axial_stress[len(cx_w) - index - 1] = [((self._bm * (self._prop['yNA'] - position) / self._prop['I']) +
-                                                    self._af / self._prop['A']) /
-                                                   self._units.get_stress_conversion(stress_unit)]*len(cx_h)
+                                                    self._af / self._prop['A'])]*len(cx_h)
 
         return shear_stress, axial_stress, [self._width_cx, self._len_cx]
