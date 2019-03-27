@@ -8,7 +8,7 @@ import os
 
 class SetupControl:
     """
-    define the types of connections and their reaction loads
+    Define the types of connections and their reaction loads
     """
     def __init__(self):
         self._cfg = config.ConfigParser()

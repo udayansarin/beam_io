@@ -7,6 +7,9 @@ import os
 
 
 class UnitControl:
+    """
+    Instances of this class provide methods to convert force, moment, stress and distance values between different units
+    """
     def __init__(self):
         config_file = os.path.join(os.getcwd(), 'unit_configurations.ini')
         self._cfg = config.ConfigParser()
@@ -18,6 +21,10 @@ class UnitControl:
         self._init_units()
 
     def _init_units(self):
+        """
+        Obtain units from the unit_configurations.ini config file
+        :return:
+        """
         _pop_list = [self._len_units, self._load_units, self._stress_units]
         _targ_list = ['DistanceUnits', 'ForceUnits', 'StressUnits']
         for index, section_header in enumerate(_targ_list):

@@ -27,7 +27,7 @@ class GUIPlotter:
     @staticmethod
     def make_plot(_x, _y, _window, x_axis=None, y_axis=None, plot_title=None):
         """
-        create a matplotlib plot instance in a wkinter frame/window
+        Create a matplotlib plot instance in a wkinter frame/window
         :param _x: x list to plot
         :param _y: y list to plot
         :param _window: tkinter widget to develop the plot in
@@ -50,6 +50,18 @@ class GUIPlotter:
     @staticmethod
     def plot_cross_section(_rectangles, _window, x_axis=None, y_axis=None, plot_title=None, stress_val=None,
                            cross_section_range=None):
+        """
+        Creates a plot of a cross-section of a beam, defined by a list of dicts, with each dict defining a rectangle.
+        The function also plots a 2D array defining the stress developed on that given cross-section
+        :param _rectangles: list of dicts, each dict defines a rectangle in a cross-section of a beam
+        :param _window: tkinter window where the cross-section plot needs to be displayed
+        :param x_axis: x axis label
+        :param y_axis: y axis label
+        :param plot_title: title of the plot
+        :param stress_val: 2D array containing stress across the cross-section
+        :param cross_section_range: two element list containing the max x and max y dimensions of the cross-section
+        :return:
+        """
         if not stress_val:
             font_ = 8
         else:
@@ -116,6 +128,12 @@ class Interface:
         self._root.mainloop()
 
     def _solve_beam(self):
+        """
+        Checks if the beam has been sufficiently defined to be solved. Instantiates the class SolveBeam to develop
+        bending moment, shear force, deflection function and axial loading lists for the beam length.
+        Stores the result in _results_dict of the class Interface
+        :return:
+        """
         suff_support = False
         no_roller = True
         lc = []
@@ -137,10 +155,17 @@ class Interface:
                         break
             if not suff_support and (len(self._supports) < 2):
                 raise RuntimeError("Insufficient defining features to solve problem\n")
+            for ld in self._loads:
+                if ld['type'] == "Distributed Load":
+                    continue
+                if ld['loc'] in lc:
+                    raise RuntimeError("You have a point load at a support\n")
         except RuntimeError as e:
+            self.output("Setup error preventing solving problem:\n")
             self.output(e)
             return
-        _sol = bs.SolveProblem(self._beam_len, self._supports, self._loads, self._resolution)
+        _sol = bs.SolveProblem(self._beam_len, self._supports, self._loads, self._resolution,
+                               self._widgets['SolvePerc'])
         self._results_dict = _sol.get_results()
         self._setup_results_tab()
         self._setup_advanced_tab()
@@ -148,11 +173,12 @@ class Interface:
 
     def _setup_advanced_tab(self):
         """
-        setup a tkinter window tab to accept and display advanced problem information - input: material properties
+        Setup a tkinter window tab to accept and display advanced problem information - input: material properties
         output: deflection, stresses
         :return:
         """
         self._rectangles = []
+        self._widgets['AdvancedTab'] = ttk.Frame(self._widgets['TabControl'])
         self._widgets['TabControl'].add(self._widgets['AdvancedTab'], text='Advanced Properties')
         self._widgets['MechInputFrame'] = LabelFrame(self._widgets['AdvancedTab'])
         self._widgets['MechInputFrame'].pack()
@@ -169,7 +195,7 @@ class Interface:
         self._widgets['AdvancedStatus'] = Text(self._widgets['ExplicitPropsSection'], height=6, width=30)
         self._widgets['AdvancedStatus'].pack()
         self.output('waiting..', adv_window=True)
-        self._defined_implicit_frame()
+        self._define_implicit_frame()
 
         self._widgets['AdvancedPlotFrame'] = LabelFrame(self._widgets['MechOutputFrame'])
         self._widgets['AdvancedPlotFrame'].pack()
@@ -204,11 +230,15 @@ class Interface:
         return
 
     def _pop_adv_plot_control(self):
+        """
+        Creates a drop-down menu which allows the user to select the advanced plot they want displayed
+        :return:
+        """
         self._widgets['AdvancedPlotVar'] = StringVar(self._widgets['AdvancedPropTargets'])
         self._widgets['AdvancedPlotVar'].set("Select Plot")
         self._widgets['AdvancedPlotMenu'] = OptionMenu(self._widgets['AdvancedPropTargets'],
                                                        self._widgets['AdvancedPlotVar'],
-                                                       *['Deflection', 'Shear Stress', 'Axial Stress', 'von Mises'])
+                                                       *['Deflection', 'Shear Stress', 'Axial Stress'])
         self._widgets['AdvancedPlotMenu'].grid(row=0, column=0)
         self._widgets['AdvancedPlotButton'] = Button(self._widgets['AdvancedPropTargets'], text="Plot",
                                                      command=lambda: self._get_advanced_plots())
@@ -223,7 +253,11 @@ class Interface:
         self._widgets['StressLocationSelector'].grid(row=2, column=0)
         return
 
-    def _defined_implicit_frame(self):
+    def _define_implicit_frame(self):
+        """
+        Populates the implicit properties input frame with tkinter widgets for defining advanced beam properties
+        :return:
+        """
         self._widgets['ImplicitComFrame'] = LabelFrame(self._widgets['ImplicitPropsFrame'])
         self._widgets['ImplicitSketchFrame'] = LabelFrame(self._widgets['ImplicitPropsFrame'])
         self._widgets['ImplicitComFrame'].pack()
@@ -262,6 +296,11 @@ class Interface:
         self._widgets['ClearRecentSupport'].grid(row=0, column=1, padx=10, pady=6)
 
     def _add_rectangle(self):
+        """
+        Add a rectangle member to the list of rectangles defining the cross-section of the beam. The function evaluates
+        if the rectangle meets the criteria/conditions to properly define a cross-section
+        :return:
+        """
         try:
             if not (self._cross_section_unit == self._widgets['CrossSectionVar'].get()):
                 _current = self._widgets['CrossSectionVar'].get()
@@ -296,11 +335,19 @@ class Interface:
         return
 
     def _clear_rectangle(self):
+        """
+        Clear the most recent rectangle which was added to the cross-section by the user
+        :return:
+        """
         self._rectangles.pop()
         self._update_cross_section_plot()
         print(self._rectangles)
 
     def _update_cross_section_plot(self):
+        """
+        Update the plot displaying the user-defined cross-section of the beam when the user adds/removes a rectangle
+        :return:
+        """
         try:
             self._widgets['CrossSecPlot'].get_tk_widget().pack_forget()
         except KeyError:
@@ -314,16 +361,26 @@ class Interface:
         self._widgets['CrossSecPlot'].draw()
 
     def _get_advanced_plots(self):
+        """
+        Determine the advanced plot that the user wants plotted in the advanced plot widget
+        :return:
+        """
         target_ = self._widgets['AdvancedPlotVar'].get()
         if target_ == "Deflection":
             self._get_deflection_plots()
-        if ("Stress" in target_) or ("von" in target_):
+        if "Stress" in target_:
             self._get_stress_plots(target_)
         else:
             self.output("Please select a plot!", adv_window=True)
         return
 
     def _get_advanced_properties(self):
+        """
+        Accept the user-inputted advanced properties. Determine if the user defined a custom cross-section or manually
+        entered the cross-section moment properties. If the user defined a cross-section the function evaluates the
+        area and the moment of inertia for the cross-section
+        :return:
+        """
         try:
             u_e = self._widgets['YoungsUnit'].get()
             _e = float(self._widgets['YoungsEntry'].get())
@@ -368,6 +425,11 @@ class Interface:
         return
 
     def _get_stress_plots(self, target_plot):
+        """
+        Display the stress plot that the user wants outputted in the advanced plot window
+        :param target_plot: the stress plot that the user wants outputted
+        :return:
+        """
         try:
             self._widgets['AdvPlotView'].get_tk_widget().pack_forget()
         except KeyError:
@@ -405,6 +467,10 @@ class Interface:
         return
 
     def _get_deflection_plots(self):
+        """
+        Display the deflection plot for the loading conditions, and beam properties - structural and cross-sectional
+        :return:
+        """
         x_plot = [x/self._units.get_len_conversion(self._len_units) for x in self._results_dict['Beam']]
         y_plot = [y/(self._advanced_properties['E']*self._advanced_properties['I'])/(self._units.get_len_conversion(
             self._len_units)) for y in self._results_dict['Deflection']]
@@ -422,7 +488,7 @@ class Interface:
 
     def _populate_window(self):
         """
-        root method to create interface geometry and layout
+        Root method to create interface geometry and layout
         :return:
         """
         # Define upper level tab design for beam_io interface
@@ -432,13 +498,15 @@ class Interface:
         self._widgets['TabControl'].pack(expand=1, fill='both')
         self._widgets['ProblemTab'] = ttk.Frame(self._widgets['TabControl'])
         self._widgets['TabControl'].add(self._widgets['ProblemTab'], text='Start Solving!')
-        self._widgets['AdvancedTab'] = ttk.Frame(self._widgets['TabControl'])
-        self._widgets['ResultsTab'] = ttk.Frame(self._widgets['TabControl'])
         self._setup_problem_tab()
         self._setup_intro_tab()
         return
 
     def _setup_intro_tab(self):
+        """
+        Create the script introduction tab and disclaimer window
+        :return:
+        """
         target_dir = os.path.join(os.getcwd(), 'app_data')
         with open(os.path.join(target_dir, "disclaimer.txt"), 'r') as f:
             dis_text = f.read()
@@ -483,9 +551,10 @@ class Interface:
 
     def _setup_results_tab(self):
         """
-        populate the force and loading results tab with tkinter widgets to display the reaction loads
+        Populate the force and loading results tab with tkinter widgets to display the reaction loads
         :return:
         """
+        self._widgets['ResultsTab'] = ttk.Frame(self._widgets['TabControl'])
         self._widgets['TabControl'].add(self._widgets['ResultsTab'], text='Results')
         self._widgets['ReactionsFrame'] = LabelFrame(self._widgets['ResultsTab'])
         self._widgets['ReactionsFrame'].pack()
@@ -513,7 +582,7 @@ class Interface:
 
     def _create_plotter(self):
         """
-        populate plotter frame with tkinter widgets
+        Populate plotter frame with tkinter widgets
         :return:
         """
         self._widgets['PlotSelectionFrame'] = Frame(self._widgets['PlotsFrame'])
@@ -533,7 +602,7 @@ class Interface:
 
     def _display_image(self):
         """
-        create a tkinter Figure of the desired plot on the basis of user input
+        Create a tkinter Figure of the desired plot on the basis of user input
         :return:
         """
         target_file = self._widgets["PlotSelectionVar"].get()
@@ -561,7 +630,7 @@ class Interface:
 
     def _update_results(self, loc_slider):
         """
-        provide the user with loading - shear, bending moment and axial loading values for a given value on the length
+        Provide the user with loading - shear, bending moment and axial loading values for a given value on the length
         of theh structure on the basis of a Tkinter slider input
         :param loc_slider: tkinter slider widget
         :return:
@@ -587,7 +656,7 @@ class Interface:
 
     def _setup_problem_tab(self):
         """
-        develop the window to be populated with widgets to accept problem specifics
+        Develop the window to be populated with widgets to accept problem specifics
         :return:
         """
         # Populate sub-frames in the problem setup tab
@@ -730,15 +799,36 @@ class Interface:
         self._widgets['LoadLine'].pack(side=LEFT)
         self._widgets['LoadScroll'].config(command=self._widgets['LoadLine'].yview)
         self._widgets['LoadLine'].config(yscrollcommand=self._widgets['LoadScroll'].set)
-        self._widgets['SolveButton1'] = Button(self._widgets['ProblemTab'], text="SOLVE", command=lambda:
-                                               self._solve_beam(), width=18)
-        self._widgets['SolveButton1'].grid(row=4, column=2, pady=15)
-        self._widgets['SolveButton1'].config(font=("Helvetica", 30))
+        self._widgets['SolveButton'] = Button(self._widgets['ProblemTab'], text="SOLVE", command=lambda:
+                                              self._solve_beam(), width=18)
+        self._widgets['SolveButton'].grid(row=4, column=2, pady=15)
+        self._widgets['SolveButton'].config(font=("Helvetica", 30))
+        self._widgets['ResetButton'] = Button(self._widgets['ProblemTab'], text="RESET", command=lambda:
+                                              self._clear_all(), width=18)
+        self._widgets['ResetButton'].grid(row=5, column=2, pady=15)
+        self._widgets['ResetButton'].config(font=("Helvetica", 30))
+        return
+
+    def _clear_all(self):
+        """
+        Clear the beam properties and displayed results as an explicit user reset
+        :return:
+        """
+        try:
+            self._widgets['TabControl'].forget(self._widgets['AdvancedTab'])
+            self._widgets['AdvancedTab'].destroy()
+            self._widgets['TabControl'].forget(self._widgets['ResultsTab'])
+            self._widgets['ResultsTab'].destroy()
+            self._widgets['SolvePerc'].config(text='SOLVED:\n 0%')
+            self._rectangles = []
+            self._advanced_properties = {}
+        except TclError:
+            pass
         return
 
     def _define_beam(self, *args):
         """
-        create the structural definition of the beam being solved - length and characteristic units desired by the user
+        Create the structural definition of the beam being solved - length and characteristic units desired by the user
         :param args:
         :return:
         """
@@ -771,7 +861,7 @@ class Interface:
 
     def _clear_last_support(self):
         """
-        delete the most recent support from the support list
+        Delete the most recent support from the support list
         :return: whether the deletion was successful
         """
         try:
@@ -785,7 +875,7 @@ class Interface:
 
     def _determine_support(self):
         """
-        parse entries to accept or decline a new support
+        Parse entries to accept or decline a new support
         :return: whether the support was accepted
         """
         try:
@@ -816,7 +906,7 @@ class Interface:
 
     def _populate_load(self, *args):
         """
-        populate load window to accept information about the selected load
+        Populate load window to accept information about the selected load
         :param args:
         :return:
         """
@@ -864,7 +954,7 @@ class Interface:
 
     def _determine_load(self):
         """
-        obtain and validate information about the definition of the input loading
+        Obtain and validate information about the definition of the input loading
         :return:
         """
         add_load = {}
@@ -910,7 +1000,7 @@ class Interface:
 
     def _clear_last_load(self):
         """
-        undo the last load entry, update the most recent entry to the second last entry on the time of the function call
+        Undo the last load entry, update the most recent entry to the second last entry on the time of the function call
         :return:
         """
         try:
@@ -938,7 +1028,7 @@ class Interface:
 
     def _update_display(self):
         """
-        update loading and support information displays when a new beam is defined or a new feature is added
+        Update loading and support information displays when a new beam is defined or a new feature is added
         :return:
         """
         self._widgets['SupportLine'].delete("1.0", END)
@@ -967,7 +1057,7 @@ class Interface:
 
     def output(self, string, adv_window=False):
         """
-        print string and display it on the commandline provided on the master tkinter window
+        Print string and display it on the commandline provided on the master tkinter window
         :param string: string to be output
         :param adv_window: indicate whether the output goes on the regular or advanced frame command output
         :return:
@@ -975,8 +1065,10 @@ class Interface:
         print(str(string))
         if not adv_window:
             self._widgets['CommandLine'].insert(INSERT, f'\n{string}')
+            self._widgets['CommandLine'].see('end')
         else:
             self._widgets['AdvancedStatus'].insert(INSERT, f'\n{string}')
+            self._widgets['AdvancedStatus'].see('end')
         return
 
 

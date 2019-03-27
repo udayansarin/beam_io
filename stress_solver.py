@@ -9,9 +9,17 @@ import units
 
 class StressSolver:
     """
-    instances of this class possess the required functions to evaluate axial and shear stress for a given cross-section
+    Instances of this class possess the required functions to evaluate axial and shear stress for a given cross-section
     """
     def __init__(self, _rectangles, _properties, _bm, _sf, _af):
+        """
+
+        :param _rectangles: list of rectangles, defined as dicts which define a beam cross-section
+        :param _properties: dict defining the advanced properties of the beam - structural and cross-sectional
+        :param _bm: bending moment value in Nm
+        :param _sf: shear force value in N
+        :param _af: axial force value in N
+        """
         self._rects = _rectangles
         self._prop = _properties
         self._bm = _bm
@@ -31,7 +39,7 @@ class StressSolver:
 
     def get_stresses(self, len_unit, stress_unit):
         """
-        calculate shear and axial stresses developed at a given location on the beam, for a given cross-section
+        Calculate shear and axial stresses developed at a given location on the beam, for a given cross-section
         :return:
         """
         cx_w = np.arange(0, self._len_cx, ((self._width_cx + self._len_cx) / 1000))

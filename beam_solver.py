@@ -14,7 +14,7 @@ import loads
 
 def _h(limit, current_position):
     """
-    heaviside function
+    Heaviside function
     :param limit: signal on limit
     :param current_position: test value
     :return: 1 if test value is greater than the limit
@@ -24,11 +24,11 @@ def _h(limit, current_position):
 
 class VerticalLoad:
     """
-    defines properties for a vertical load
+    Defines properties for a vertical load
     """
     def __init__(self, loc, magnitude):
         """
-        define properties of a vertical load
+        Define properties of a vertical load
         :param loc: location in distance
         :param magnitude: in force
         """
@@ -37,7 +37,7 @@ class VerticalLoad:
 
     def singularity(self, x):
         """
-        macaulay deflection result
+        Macaulay deflection result
         :param x: test location
         :return: deflection due to vertical load
         """
@@ -47,7 +47,7 @@ class VerticalLoad:
 
     def singularity_slope(self, x):
         """
-        macaulay slope result
+        Macaulay slope result
         :param x: test location
         :return: slope due to vertical load
         """
@@ -57,7 +57,7 @@ class VerticalLoad:
 
     def get_point_loading(self, mom_bal=False):
         """
-        equivalent point loading due to a vertical load
+        Equivalent point loading due to a vertical load
         :param mom_bal: boolean, True if moment balance is being parsed
         :return: equivalent point loading
         """
@@ -65,7 +65,7 @@ class VerticalLoad:
 
     def v_shear(self, x):
         """
-        macaulay shear due to a vertical load
+        Macaulay shear due to a vertical load
         :param x: test location
         :return: macaulay shear
         """
@@ -75,7 +75,7 @@ class VerticalLoad:
 
     def v_moment(self, x):
         """
-        macaulay moment due to a vertical load
+        Macaulay moment due to a vertical load
         :param x: test location
         :return: macaulay moment
         """
@@ -86,11 +86,11 @@ class VerticalLoad:
 
 class AxialLoad:
     """
-    define properties for an axial load
+    Define properties for an axial load
     """
     def __init__(self, loc, magnitude):
         """
-        additional functionality for axial loading in development
+        Additional functionality for axial loading in development
         :param loc: location of the axial load distance
         :param magnitude: magnitude of the axial load in force
         """
@@ -102,7 +102,7 @@ class AxialLoad:
 
     def ax_singularity(self, x):
         """
-        get point loading due to axial force as heavside for axial force diagrams
+        Get point loading due to axial force as heavside for axial force diagrams
         :param x: test location
         :return: axial reaction as heaviside
         """
@@ -111,11 +111,11 @@ class AxialLoad:
 
 class Moment:
     """
-    defines properties for a moment load
+    Defines properties for a moment load
     """
     def __init__(self, loc, magnitude):
         """
-        define properties of a moment load
+        Define properties of a moment load
         :param loc: location in distance
         :param magnitude: magnitude in force*distance
         """
@@ -124,7 +124,7 @@ class Moment:
 
     def singularity(self, x):
         """
-        macaulay deflection result
+        Macaulay deflection result
         :param x: test location
         :return: deflection due to moment load
         """
@@ -134,7 +134,7 @@ class Moment:
 
     def singularity_slope(self, x):
         """
-        macaulay slope result
+        Macaulay slope result
         :param x: test location
         :return: slope due to moment load
         """
@@ -144,7 +144,7 @@ class Moment:
 
     def get_point_loading(self, mom_bal=False):
         """
-        equivalent point loading due to a moment load
+        Equivalent point loading due to a moment load
         :param mom_bal: boolean, True if moment balance is being parsed
         :return: equivalent point load
         """
@@ -152,7 +152,7 @@ class Moment:
 
     def m_moment(self, x):
         """
-        macaulay moment due to a moment load
+        Macaulay moment due to a moment load
         :param x: test location
         :return: macaulay moment
         """
@@ -167,7 +167,7 @@ class Moment:
 
 class RectangleLoad:
     """
-    defines properties for a rectangular distributed load
+    Defines properties for a rectangular distributed load
     """
     def __init__(self, loc, magnitude, end_loc):
         """
@@ -182,7 +182,7 @@ class RectangleLoad:
 
     def singularity(self, x):
         """
-        macaulay deflection result
+        Macaulay deflection result
         :param x: test location
         :return: deflection due to rectangle load
         """
@@ -192,7 +192,7 @@ class RectangleLoad:
 
     def singularity_slope(self, x):
         """
-        macaulay slope result
+        Macaulay slope result
         :param x: test location
         :return: slope due to rectangle load
         """
@@ -202,14 +202,14 @@ class RectangleLoad:
 
     def point_eq(self):
         """
-        equivalent force due to a rectangular load
+        Equivalent force due to a rectangular load
         :return:
         """
         return self._value*(self._end - self._location)
 
     def get_point_loading(self, mom_bal=False):
         """
-        equivalent point loading due to a rectangular load
+        Equivalent point loading due to a rectangular load
         :param mom_bal: boolean, True if moment balance is being parsed
         :return: equivalent point load
         """
@@ -217,7 +217,7 @@ class RectangleLoad:
 
     def v_shear(self, x):
         """
-        macaulay shear due to a rectangular load
+        Mcaulay shear due to a rectangular load
         :param x: test location
         :return: macaulay shear
         """
@@ -227,7 +227,7 @@ class RectangleLoad:
 
     def v_moment(self, x):
         """
-        macaulay moment due to a rectangle load
+        Macaulay moment due to a rectangle load
         :param x: test location
         :return: macaulay moment
         """
@@ -238,11 +238,11 @@ class RectangleLoad:
 
 class TriangleLoad:
     """
-    defines properties for a triangular distributed load
+    Defines properties for a triangular distributed load
     """
     def __init__(self, loc, slope, end_loc):
         """
-        define properties of a triangular load
+        Define properties of a triangular load
         :param loc: location in distance
         :param slope: slope in (force/distance)/distance
         :param end_loc: end of the beam on which the force is generated
@@ -253,7 +253,7 @@ class TriangleLoad:
 
     def singularity(self, x):
         """
-        macaulay deflection result
+        Macaulay deflection result
         :param x: test location
         :return: deflection due to triangle load
         """
@@ -263,7 +263,7 @@ class TriangleLoad:
 
     def singularity_slope(self, x):
         """
-        macaulay slope result
+        Macaulay slope result
         :param x: test location
         :return: slope due to rectangle load
         """
@@ -273,14 +273,14 @@ class TriangleLoad:
 
     def point_eq(self):
         """
-        equivalent force due to a triangular force
+        Equivalent force due to a triangular force
         :return:
         """
         return self._value*0.5*(self._end - self._location)**2
 
     def get_point_loading(self, mom_bal=False):
         """
-        equivalent point loading due to a triangular load
+        Equivalent point loading due to a triangular load
         :param mom_bal: boolean, True if moment balance is being parsed
         :return: equivalent point load
         """
@@ -288,7 +288,7 @@ class TriangleLoad:
 
     def v_shear(self, x):
         """
-        macaulay shear due to a triangular load
+        Macaulay shear due to a triangular load
         :param x: test location
         :return: macaulay shear
         """
@@ -298,7 +298,7 @@ class TriangleLoad:
 
     def v_moment(self, x):
         """
-        macaulay moment due to a triangular load
+        Macaulay moment due to a triangular load
         :param x: test location
         :return: macaulay moment
         """
@@ -391,11 +391,11 @@ class DistributedLoad:
 
 class FixedSupport:
     """
-    model a cantiliver/fixed support
+    Model a cantiliver/fixed support
     """
     def __init__(self, loc):
         """
-        define properties of a fixed support
+        Define properties of a fixed support
         :param loc: location of the support
         """
         self._location = loc
@@ -407,7 +407,7 @@ class FixedSupport:
 
     def get_reactions(self):
         """
-        provide dict of reactions developed at a fixed support along with support metadata
+        Provide dict of reactions developed at a fixed support along with support metadata
         :return: dict containing support metadata and reaction load values
         """
         return {
@@ -419,21 +419,21 @@ class FixedSupport:
 
     def update_ax_loading(self, axial_load):
         """
-        update axial reaction load
+        Update axial reaction load
         :return:
         """
         self._reaction_ax = axial_load
 
     def ax_get_point_loading(self):
         """
-        get point loading for axial reaction
+        Get point loading for axial reaction
         :return: axial reaction load at the fixed support
         """
         return self._reaction_ax
 
     def ax_singularity(self, x):
         """
-        get point loading due to axial reaction as heavside for axial force diagrams
+        Get point loading due to axial reaction as heavside for axial force diagrams
         :param x: test location
         :return: axial reaction as heaviside
         """
@@ -441,7 +441,7 @@ class FixedSupport:
 
     def m_get_point_loading(self, mom_bal=False):
         """
-        get point loading due to moment reaction
+        Get point loading due to moment reaction
         :param mom_bal: bool, indicates whether moment balance is being conducted
         :return: point loading as moment for moment balance or force balance, governed by mom_bal
         """
@@ -449,7 +449,7 @@ class FixedSupport:
 
     def v_get_point_loading(self, mom_bal=False):
         """
-        get point loading due to shear reaction
+        Get point loading due to shear reaction
         :param mom_bal: bool, indicates whether moment balance is being conducted
         :return: point loading as moment for moment balance or force balance, governed by mom_bal
         """
@@ -467,7 +467,7 @@ class FixedSupport:
 
     def m_singularity_slope(self, x):
         """
-        macaulay slope developed due to moment reaction
+        Macaulay slope developed due to moment reaction
         :param x: test location
         :return: macaulay slope
         """
@@ -477,7 +477,7 @@ class FixedSupport:
 
     def v_singularity(self, x):
         """
-        macaulay deflection due to shear reaction
+        Macaulay deflection due to shear reaction
         :param x: test location
         :return: macaulay deflection
         """
@@ -487,7 +487,7 @@ class FixedSupport:
 
     def v_singularity_slope(self, x):
         """
-        macaulay slope due to shear reaction
+        Macaulay slope due to shear reaction
         :param x: test location
         :return: macaulay slope
         """
@@ -497,7 +497,7 @@ class FixedSupport:
 
     def m_shear(self, x):
         """
-        macaulay shear due to moment reaction
+        Macaulay shear due to moment reaction
         :param x: test location
         :return: macaulay shear
         """
@@ -507,7 +507,7 @@ class FixedSupport:
 
     def v_shear(self, x):
         """
-        maculay shear due to shear reaction
+        Macaulay shear due to shear reaction
         :param x: test location
         :return: macaulay shear
         """
@@ -517,7 +517,7 @@ class FixedSupport:
 
     def m_moment(self, x):
         """'
-        macaulay moment due to moment reaction
+        Macaulay moment due to moment reaction
         :param x: test location
         :return: macaulay moment
         """
@@ -527,7 +527,7 @@ class FixedSupport:
 
     def v_moment(self, x):
         """
-        macaulay moment due to shear reaction
+        Macaulay moment due to shear reaction
         :param x: test location
         :return: macaulay moment
         """
@@ -537,7 +537,7 @@ class FixedSupport:
 
     def update_values(self, moment, shear):
         """
-        update value for the reactions at the support
+        Update value for the reactions at the support
         :param moment: update value for the moment reaction
         :param shear: update value for the shear reaction
         :return:
@@ -548,11 +548,11 @@ class FixedSupport:
 
 class PinnedSupport:
     """
-    model a pinned structural support
+    Model a pinned structural support
     """
     def __init__(self, loc):
         """
-        define properties for a pinned structural support
+        Define properties for a pinned structural support
         :param loc: location of the support
         """
         self._location = loc
@@ -563,7 +563,7 @@ class PinnedSupport:
 
     def get_reactions(self):
         """
-        provide dict of reactions developed at a fixed support along with support metadata
+        Provide dict of reactions developed at a fixed support along with support metadata
         :return: dict containing support metadata and reaction load values
         """
         return {
@@ -574,21 +574,21 @@ class PinnedSupport:
 
     def update_ax_loading(self, axial_load):
         """
-        update axial reaction load
+        Update axial reaction load
         :return:
         """
         self._reaction_ax = axial_load
 
     def ax_get_point_loading(self):
         """
-        get point loading for axial reaction
+        Get point loading for axial reaction
         :return: axial reaction load at the fixed support
         """
         return self._reaction_ax
 
     def ax_singularity(self, x):
         """
-        get point loading due to axial reaction as heavside for axial force diagrams
+        Get point loading due to axial reaction as heavside for axial force diagrams
         :param x: test location
         :return: axial reaction as heaviside
         """
@@ -596,7 +596,7 @@ class PinnedSupport:
 
     def v_singularity(self, x):
         """
-        macaulay deflection due to shear reaction
+        Macaulay deflection due to shear reaction
         :param x: test location
         :return: macaulay deflection
         """
@@ -606,7 +606,7 @@ class PinnedSupport:
 
     def v_singularity_slope(self, x):
         """
-        macaulay slope due to shear reaction
+        Macaulay slope due to shear reaction
         :param x: test location
         :return: macaulay slope
         """
@@ -616,7 +616,7 @@ class PinnedSupport:
 
     def v_shear(self, x):
         """
-        macaulay shear due to shear reaction
+        Macaulay shear due to shear reaction
         :param x: test location
         :return: macaulay shear
         """
@@ -626,7 +626,7 @@ class PinnedSupport:
 
     def v_moment(self, x):
         """
-        macaulay moment due to shear reaction
+        Macaulay moment due to shear reaction
         :param x: test location
         :return: macaulay moment
         """
@@ -636,7 +636,7 @@ class PinnedSupport:
 
     def get_point_loading(self, mom_bal=False):
         """
-        get point loading due to shear reaction developed at a pinned support
+        Get point loading due to shear reaction developed at a pinned support
         :param mom_bal: boolean indicating whether the point loading is for a moment or force balance
         :return: point loading due to shear reaction at a pinned support
         """
@@ -644,7 +644,7 @@ class PinnedSupport:
 
     def update_values(self, shear):
         """
-        update values of the reaction loads developed at a pinned support
+        Update values of the reaction loads developed at a pinned support
         :param shear: shear value to be updated
         :return:
         """
@@ -732,18 +732,18 @@ class RollerSupport:
 
 class SolveProblem:
     """
-    define a generic beam solver
+    Define a generic beam solver
     """
-    def __init__(self, beam_len, support_dict, load_dict, grid_def, special_properties=None):
+    def __init__(self, beam_len, support_dict, load_dict, grid_def, solved_perc_widget):
         """
-        define the features which need to be solved
+        Define the features which need to be solved
         :param beam_len: length of the beam being solved
         :param support_dict: dict defining the location of supports
         supports = [{'support': 'Fixed', 'location': 0.0}, {'support': 'Fixed', 'location': 12.0}]
         :param load_dict: dict defining the location of loads
         loading = [{'type': 'Vertical Load', 'val': 6000.0, 'loc': 6.0}]
         :param grid_def: definition of the grid which is being solved
-        :param special_properties: dict containing information pertaining to Young's modulus and cross section geometry
+        :param solved_perc_widget: widget to display percentage of solution calculated
         """
         self._beam_len = beam_len
         self._LHS = []
@@ -755,6 +755,7 @@ class SolveProblem:
         self.C1 = None  # Integration const 1
         self.C2 = None  # Integration const 2
         self.equations = 0
+        self._status_widget = solved_perc_widget
         self._setup = loads.SetupControl()
         self._beam_body = list(np.linspace(0, self._beam_len, grid_def))
         self._shear_force = list(np.zeros(len(self._beam_body)))
@@ -764,9 +765,18 @@ class SolveProblem:
         self._identify_vertical_unknowns()
         self._create_equations()
 
+    def _update_solve_status(self, percentage):
+        """
+        Update the percentage display indicating the solution's completion state
+        :param percentage: percentage indicating how much of the beam problem is solved
+        :return:
+        """
+        self._status_widget.config(text=f"SOLVED:\n {percentage}%")
+        return
+
     def _identify_vertical_unknowns(self):
         """
-        identify the number of unknowns which exist in the structural loading problem
+        Identify the number of unknowns which exist in the structural loading problem
         :return:
         """
         # unknowns which can be solved using structural analysis
@@ -779,11 +789,13 @@ class SolveProblem:
         for _ in range(0, self.unknowns):
             self._LHS.append(list(np.zeros(self.unknowns)))
             self._RHS.append(0)
+        self._update_solve_status(percentage=10)
+        return
 
     @staticmethod
     def cls_router(name):
         """
-        link keys elements in the support dict to corresponding property classes
+        Link keys elements in the support dict to corresponding property classes
         :param name:
         :return:
         """
@@ -804,7 +816,7 @@ class SolveProblem:
 
     def _create_equations(self):
         """
-        develop the equations to solve the problem
+        Develop the equations to solve the problem
         :return:
         """
         for support in self._supports:
@@ -821,13 +833,18 @@ class SolveProblem:
         self._basic_equations(moment_balance=False)  # force balance
         self._basic_equations(moment_balance=True)  # moment balance
         self._get_slope_equations()  # slope equation from evaluating locations of zero slope
+        self._update_solve_status(percentage=30)
         self._get_deflection_equations()  # slope equations from evaluating locations of zero deflection
+        self._update_solve_status(percentage=60)
         self._axial_equations()
+        self._update_solve_status(percentage=80)
         self._parse_results()  # solve system of linear equations and develop result datasets
+        self._update_solve_status(percentage=100)
+        return
 
     def _axial_equations(self):
         """
-        identify axial loads on the structure and evaluate parameters for axial loading on the beam
+        Identify axial loads on the structure and evaluate parameters for axial loading on the beam
         :return:
         """
         # calculate the number of supports with an axial reaction
@@ -895,10 +912,11 @@ class SolveProblem:
         ax_solutions = np.linalg.solve(axial_lhs, axial_rhs)
         for index, support in enumerate(axial_supports):
             support['obj'].update_ax_loading(ax_solutions[index])
+        return
 
     def _get_slope_equations(self):
         """
-        identify locations of zero deflection and evaluate macaulay deflection for the beam at target locations
+        Identify locations of zero deflection and evaluate macaulay deflection for the beam at target locations
         :return:
         """
         # check if the equation is needed - if a fixed support exists
@@ -925,10 +943,11 @@ class SolveProblem:
                     rhs_slope_add += load['obj'].singularity_slope(indet_loc)
             self._RHS[self.equations] = -rhs_slope_add
             self.equations += 1
+        return
 
     def _get_deflection_equations(self):
         """
-        identify locations where macaulay deflection can be evaluated - i.e supports as beam deflection is zero
+        Identify locations where macaulay deflection can be evaluated - i.e supports as beam deflection is zero
         :return:
         """
         for parent_support in self._supports:
@@ -956,7 +975,7 @@ class SolveProblem:
 
     def _basic_equations(self, moment_balance=False):
         """
-        perform force and moment balance on the structure, develop corresponding equations
+        Perform force and moment balance on the structure, develop corresponding equations
         :param moment_balance: boolean indicating whether the analysis is a moment balance
         :return:
         """
@@ -979,7 +998,7 @@ class SolveProblem:
 
     def _parse_results(self):
         """
-        solve system of linea equations to evaluate reactions, update support values and determine developed constants
+        Solve system of linea equations to evaluate reactions, update support values and determine developed constants
         of integration when macaulay moments are converted to deflection
         :return:
         """
@@ -1034,10 +1053,11 @@ class SolveProblem:
             self._bending_moment[index] = bending_moment
             self._deflection[index] = deflection
             self._axial_force[index] = axial
+        return
 
     def get_results(self):
         """
-        develop dictionary of beam solution values - bending moment, deflection, shear force and axial force. Also,
+        Develop dictionary of beam solution values - bending moment, deflection, shear force and axial force. Also,
         reactions and critical metadata is subtended to this dictionary.
         :return: results and similar data in the form of a dict
         """
