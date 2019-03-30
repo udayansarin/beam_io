@@ -460,7 +460,7 @@ class Interface:
         elif target_plot == "Shear Stress":
             self._widgets['AdvPlotView'] = GUIPlotter.plot_cross_section(
                 self._rectangles, self._widgets['AdvancedPlotDisplay'], self._cross_section_unit,
-                self._cross_section_unit, f"Shear Stress in {self._stress_units})", shear_s, sec_size)
+                self._cross_section_unit, f"Shear Stress in {self._stress_units}", shear_s, sec_size)
         self._widgets['AdvPlotView'].get_tk_widget().pack()
         self._widgets['AdvPlotView'].draw()
         self.output(f'{target_plot} plot displayed', adv_window=True)
@@ -539,7 +539,7 @@ class Interface:
                 else:
                     conv_ = self._units.get_force_conversion(self._force_units)
                     units_ = self._force_units
-                reac_str += f'{key} reaction: {float(line)/conv_}{units_}\n'
+                reac_str += f'{key} reaction: {round(float(line)/conv_, 3)}{units_}\n'
             txt = Text(self._widgets['ReactionsFrame'], height=6, width=30)
             txt.grid(row=_row, column=_column)
             _column += 1
@@ -646,9 +646,9 @@ class Interface:
         vertical_load = _sf[target_ind]/self._units.get_force_conversion(self._force_units)
         bending_moment = _bm[target_ind]/self._units.get_combined_conversion('Moment Load', self._len_units,
                                                                              self._force_units)
-        axial_text = f"Axial Loading: {axial_load} {self._force_units}"
-        vertical_text = f"Vertical Loading: {vertical_load} {self._force_units}"
-        moment_text = f"Moment Loading: {bending_moment} {self._force_units}{self._len_units}"
+        axial_text = f"Axial Loading: {round(axial_load, 3)} {self._force_units}"
+        vertical_text = f"Vertical Loading: {round(vertical_load, 3)} {self._force_units}"
+        moment_text = f"Moment Loading: {round(bending_moment, 3)} {self._force_units}{self._len_units}"
         self._widgets['AxialResults'].config(text=axial_text)
         self._widgets['ShearResults'].config(text=vertical_text)
         self._widgets['MomentResults'].config(text=moment_text)
