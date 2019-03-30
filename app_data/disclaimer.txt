@@ -1,0 +1,8 @@
+beam_io is a personal project made by a mechanical engineering student at the
+University of Waterloo. 
+
+I have applied concepts of solid mechanics and stress states to develop a tool 
+capable of solving statically indeterminate structural problems.
+
+beam_io IS A PERSONAL PROJECT. IT IS NOT FOR ENGINEERING USE. IT IS NOT A 
+SUBSTITUTE FOR ENGINEERING/FEA SOFTWARE.
